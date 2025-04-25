@@ -1,0 +1,129 @@
+<div id="loginModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        
+        <!-- Login Form -->
+        <div id="loginForm" class="auth-form active">
+            <h2><i class="fas fa-sign-in-alt"></i> Login</h2>
+            <form onsubmit="Auth.handleLogin(event)">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" placeholder="Enter your email" required>
+                    <div class="error-message" id="loginEmailError"></div>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <div class="password-input-container">
+                        <input type="password" id="loginPassword" placeholder="Enter your password" required>
+                        <i class="fas fa-eye toggle-password" onclick="Modal.togglePasswordVisibility('loginPassword', this)"></i>
+                    </div>
+                    <div class="error-message" id="loginPasswordError"></div>
+                </div>
+                <div class="form-group remember-me">
+                    <input type="checkbox" id="rememberMe">
+                    <label for="rememberMe">Remember me</label>
+                </div>
+                <button type="submit" class="btn login-btn">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+            </form>
+            <div class="modal-footer">
+                <p>Don't have an account? <a href="#" onclick="Modal.toggleForms('signup')">Sign Up</a></p>
+                <a href="#" onclick="Modal.showForgotPassword()" class="forgot-password">Forgot Password?</a>
+            </div>
+        </div>
+
+        <!-- Signup Form -->
+<div id="signupForm" class="auth-form">
+    <h2><i class="fas fa-user-plus"></i> Create Account</h2>
+    <form onsubmit="Auth.handleSignup(event)">
+        <div class="form-group">
+            <label for="signupName">Full Name</label>
+            <input type="text" id="signupName" placeholder="Enter your full name" required>
+            <div class="error-message" id="signupNameError"></div>
+        </div>
+        
+        <div class="form-group">
+            <label for="signupEmail">Email</label>
+            <input type="email" id="signupEmail" placeholder="Enter your email" required>
+            <div class="error-message" id="signupEmailError"></div>
+        </div>
+        
+        <div class="form-group">
+            <label for="signupPassword">Password</label>
+            <div class="password-input-container">
+                <input type="password" id="signupPassword" 
+                       placeholder="Create a password" 
+                       required
+                       onkeyup="Modal.checkPasswordStrength(this.value)">
+                <i class="fas fa-eye toggle-password" onclick="Modal.togglePasswordVisibility('signupPassword', this)"></i>
+            </div>
+            
+            <div class="password-strength">
+                <div class="strength-meter">
+                    <div class="meter-section"></div>
+                    <div class="meter-section"></div>
+                    <div class="meter-section"></div>
+                    <div class="meter-section"></div>
+                </div>
+                <span class="strength-text">Password Strength</span>
+            </div>
+            
+            <div class="password-requirements">
+                <div class="requirement" id="length">
+                    <i class="fas fa-circle"></i> At least 8 characters
+                </div>
+                <div class="requirement" id="uppercase">
+                    <i class="fas fa-circle"></i> One uppercase letter
+                </div>
+                <div class="requirement" id="lowercase">
+                    <i class="fas fa-circle"></i> One lowercase letter
+                </div>
+                <div class="requirement" id="number">
+                    <i class="fas fa-circle"></i> One number
+                </div>
+                <div class="requirement" id="special">
+                    <i class="fas fa-circle"></i> One special character
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="confirmPassword">Confirm Password</label>
+            <div class="password-input-container">
+                <input type="password" id="confirmPassword" placeholder="Confirm your password" required>
+                <i class="fas fa-eye toggle-password" onclick="Modal.togglePasswordVisibility('confirmPassword', this)"></i>
+            </div>
+            <div class="error-message" id="confirmPasswordError"></div>
+        </div>
+        
+        <button type="submit" class="btn signup-btn">
+            <i class="fas fa-user-plus"></i> Create Account
+        </button>
+    </form>
+    
+    <div class="modal-footer">
+        <p>Already have an account? <a href="#" onclick="Modal.toggleForms('login')">Login</a></p>
+    </div>
+</div>
+
+        <!-- Forgot Password Form -->
+        <div id="forgotPasswordForm" class="auth-form">
+            <h2><i class="fas fa-key"></i> Reset Password</h2>
+            <p class="form-description">Enter your email address and we'll send you a link to reset your password.</p>
+            <form onsubmit="Auth.handleForgotPassword(event)">
+                <div class="form-group">
+                    <label for="resetEmail">Email</label>
+                    <input type="email" id="resetEmail" placeholder="Enter your email" required>
+                    <div class="error-message" id="resetEmailError"></div>
+                </div>
+                <button type="submit" class="btn reset-btn">
+                    <i class="fas fa-paper-plane"></i> Send Reset Link
+                </button>
+            </form>
+            <div class="modal-footer">
+                <p>Remember your password? <a href="#" onclick="Modal.toggleForms('login')">Login</a></p>
+            </div>
+        </div>
+    </div>
+</div>
