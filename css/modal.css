@@ -1,0 +1,275 @@
+.modal {
+    display: flex;
+    position: fixed;
+    z-index: 1001;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px 0;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 2em;
+    border: 1px solid var(--secondary-color);
+    border-radius: 15px;
+    width: 90%;
+    max-width: 400px;
+    position: relative;
+    box-shadow: 0 5px 25px rgba(212, 175, 55, 0.3);
+    animation: modalSlide 0.3s ease-out;
+     max-height: 90vh; /* Limit maximum height */
+    overflow-y: auto; /* Enable vertical scrolling if content is too long */
+    display: flex;
+    flex-direction: column;
+}
+
+@keyframes modalSlide {
+    from {
+        transform: translateY(-100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.close:hover {
+    color: var(--primary-color);
+}
+
+.auth-form {
+    display: none;
+    overflow-y: auto; /* Enable scrolling within the form if needed */
+    max-height: 70vh; /* Limit form height */
+}
+
+.auth-form.active {
+    display: block;
+}
+
+.auth-form h2 {
+    color: var(--primary-color);
+    margin-bottom: 1.5em;
+    text-align: center;
+    font-size: 1.8em;
+}
+
+.auth-form h2 i {
+    margin-right: 10px;
+}
+
+.form-group {
+    margin-bottom: 1.5em;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1em;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 5px rgba(212, 175, 55, 0.3);
+    outline: none;
+}
+
+.password-input-container {
+    position: relative;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #666;
+    transition: color 0.3s ease;
+}
+
+.toggle-password:hover {
+    color: var(--primary-color);
+}
+
+.password-strength {
+    margin-top: 10px;
+}
+
+.strength-meter {
+    display: flex;
+    height: 5px;
+    gap: 3px;
+    margin-bottom: 5px;
+}
+
+.meter-section {
+    height: 4px;
+    flex: 1;
+    background: #ddd;
+    border-radius: 2px;
+    transition: background-color 0.3s ease;
+}
+
+.meter-section.weak {
+    background-color: #dc3545;
+}
+
+.meter-section.medium {
+    background-color: #ffc107;
+}
+
+.meter-section.strong {
+    background-color: #28a745;
+}
+
+.strength-text {
+    font-size: 0.8em;
+    color: #666;
+}
+
+.password-requirements {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    max-height: 200px; /* Limit height of requirements */
+    overflow-y: auto; /* Enable scrolling for requirements */
+}
+
+.requirement {
+    color: #666;
+    margin: 8px 0;
+    font-size: 0.9em;
+    transition: color 0.3s ease;
+}
+
+.requirement i {
+    margin-right: 8px;
+    font-size: 0.8em;
+}
+
+.requirement.met {
+    color: #28a745;
+}
+
+.requirement.met i {
+    color: #28a745;
+}
+
+.error-message {
+    color: #dc3545;
+    font-size: 0.85em;
+    margin-top: 5px;
+    display: none;
+}
+
+.error-message.show {
+    display: block;
+}
+
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.remember-me input[type="checkbox"] {
+    width: auto;
+}
+
+.btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn i {
+    font-size: 1.1em;
+}
+
+.modal-footer {
+    margin-top: 1.5em;
+    text-align: center;
+    color: #666;
+}
+
+.modal-footer a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.modal-footer a:hover {
+    color: var(--secondary-color);
+}
+
+.forgot-password {
+    display: block;
+    margin-top: 10px;
+    font-size: 0.9em;
+}
+
+.form-description {
+    color: #666;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+@media (max-width: 480px) {
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+        padding: 1em;
+    }
+    .form-group input {
+        padding: 10px;
+    }
+
+    .password-requirements {
+        max-height: 150px;
+        padding: 10px;
+    }
+    .auth-form h2 {
+        font-size: 1.5em;
+        margin-bottom: 1em;
+    }
+}
