@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NextStep Admin - User Management</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="../css/main.css">
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="admin-body">
+    <div class="admin-container">
+        <!-- Admin Sidebar -->
+        <div class="admin-sidebar">
+            <div class="logo-container">
+                <img src="../images/logo.png" alt="NextStep Logo" class="admin-logo">
+                <h2>NextStep</h2>
+                <p>Admin Panel</p>
+            </div>
+            
+            <nav class="admin-nav">
+                <ul>
+                    <li><a href="dashboard.html"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                    <li class="active"><a href="users.html"><i class="fas fa-users"></i> User Management</a></li>
+                    <li><a href="college-data.html"><i class="fas fa-university"></i> College Data</a></li>
+                    <li><a href="analytics.html"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+                    <li><a href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+                </ul>
+            </nav>
+            
+            <div class="admin-sidebar-footer">
+                <a href="../index.html"><i class="fas fa-home"></i> Back to Site</a>
+                <button id="admin-logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div>
+        </div>
+        
+        <!-- Admin Content -->
+        <div class="admin-content">
+            <!-- Admin Header -->
+            <header class="admin-header">
+                <div class="header-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="user-search" placeholder="Search users by name or email...">
+                </div>
+                
+                <div class="header-right">
+                    <div class="notifications">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge">3</span>
+                    </div>
+                    
+                    <div class="admin-profile">
+                        <img src="../images/avatar-placeholder.png" alt="Admin" class="avatar">
+                        <span class="admin-name">Admin Name</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- User Management Content -->
+            <main class="dashboard-main">
+                <div class="page-header">
+                    <h1>User Management</h1>
+                    <div class="header-actions">
+                        <button class="btn-primary" id="add-user-btn">
+                            <i class="fas fa-user-plus"></i> Add User
+                        </button>
+                        <button class="btn-secondary" id="export-users-btn">
+                            <i class="fas fa-file-export"></i> Export
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Filter Section -->
+                <div class="filter-section">
+                    <div class="filter-container">
+                        <div class="filter-group">
+                            <label for="role-filter">Role</label>
+                            <select id="role-filter">
+                                <option value="all">All Roles</option>
+                                <option value="student">Student</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label for="exam-filter">Exam Type</label>
+                            <select id="exam-filter">
+                                <option value="all">All Exams</option>
+                                <option value="JeeMain">JEE Main</option>
+                                <option value="JeeAdvanced">JEE Advanced</option>
+                                <option value="Mhtcet">MHT-CET</option>
+                                <option value="Neet">NEET-UG</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label for="status-filter">Status</label>
+                            <select id="status-filter">
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="unverified">Unverified Email</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group date-filter">
+                            <label for="date-filter">Registration Date</label>
+                            <div class="date-inputs">
+                                <input type="date" id="date-from" placeholder="From">
+                                <span>to</span>
+                                <input type="date" id="date-to" placeholder="To">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button id="apply-filters" class="btn-primary">Apply Filters</button>
+                        <button id="clear-filters" class="btn-secondary">Clear Filters</button>
+                    </div>
+                </div>
+                
+                <!-- Users Table -->
+                <div class="admin-table-container">
+                    <table class="admin-table" id="users-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all-users"></th>
+                                <th>Name <i class="fas fa-sort"></i></th>
+                                <th>Email <i class="fas fa-sort"></i></th>
+                                <th>Mobile</th>
+                                <th>Exams</th>
+                                <th>Registered <i class="fas fa-sort"></i></th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="9" class="loading-cell">Loading users...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        Showing <span id="showing-start">0</span> to <span id="showing-end">0</span> of <span id="total-users-count">0</span> users
+                    </div>
+                    <div class="pagination-controls">
+                        <button id="prev-page" disabled><i class="fas fa-chevron-left"></i></button>
+                        <div id="pagination-numbers">
+                            <!-- Page numbers will be inserted here -->
+                        </div>
+                        <button id="next-page"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div class="pagination-size">
+                        <label for="page-size">Show</label>
+                        <select id="page-size">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span>per page</span>
+                    </div>
+                </div>
+                
+                <!-- Bulk Actions -->
+                <div class="bulk-actions-container" id="bulk-actions" style="display: none;">
+                    <span><span id="selected-count">0</span> users selected</span>
+                    <div class="bulk-actions">
+                        <button class="bulk-action-btn" id="bulk-verify">
+                            <i class="fas fa-check-circle"></i> Verify Email
+                        </button>
+                        <button class="bulk-action-btn" id="bulk-deactivate">
+                            <i class="fas fa-user-slash"></i> Deactivate
+                        </button>
+                        <button class="bulk-action-btn" id="bulk-activate">
+                            <i class="fas fa-user-check"></i> Activate
+                        </button>
+                        <button class="bulk-action-btn warning" id="bulk-delete">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- User Edit Modal -->
+    <div id="userEditModal" class="admin-modal">
+        <div class="admin-modal-content large-modal">
+            <div class="admin-modal-header">
+                <h2>Edit User</h2>
+                <button class="admin-modal-close">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="edit-user-form">
+                    <input type="hidden" id="edit-user-id">
+                    
+                    <div class="modal-form-grid">
+                        <!-- Personal Information -->
+                        <div class="form-section">
+                            <h3>Personal Information</h3>
+                            
+                            <div class="form-group">
+                                <label for="edit-name">Full Name</label>
+                                <input type="text" id="edit-name" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="edit-email">Email Address</label>
+                                <input type="email" id="edit-email" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="edit-mobile">Mobile Number</label>
+                                <input type="tel" id="edit-mobile" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="edit-role">User Role</label>
+                                <select id="edit-role" required>
+                                    <option value="student">Student</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="edit-status">Account Status</label>
+                                <select id="edit-status" required>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Exam Information -->
+                        <div class="form-section">
+                            <h3>Exam Information</h3>
+                            
+                            <div class="form-group checkbox-group">
+                                <label>Applicable Exams:</label>
+                                <div class="checkbox-grid">
+                                    <div class="checkbox-container">
+                                        <input type="checkbox" id="edit-jee-main" class="edit-exam-checkbox">
+                                        <label for="edit-jee-main">JEE Main</label>
+                                    </div>
+                                    <div class="checkbox-container">
+                                        <input type="checkbox" id="edit-jee-advanced" class="edit-exam-checkbox">
+                                        <label for="edit-jee-advanced">JEE Advanced</label>
+                                    </div>
+                                    <div class="checkbox-container">
+                                        <input type="checkbox" id="edit-mhtcet" class="edit-exam-checkbox">
+                                        <label for="edit-mhtcet">MHT-CET</label>
+                                    </div>
+                                    <div class="checkbox-container">
+                                        <input type="checkbox" id="edit-neet" class="edit-exam-checkbox">
+                                        <label for="edit-neet">NEET-UG</label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Dynamic rank fields -->
+                            <div id="edit-rank-fields">
+                                <div class="form-group rank-field" data-exam="jeeMain">
+                                    <label for="edit-jee-main-rank">JEE Main Rank</label>
+                                    <div class="rank-input-group">
+                                        <input type="number" id="edit-jee-main-rank">
+                                        <div class="verification-toggle">
+                                            <input type="checkbox" id="verify-jee-main">
+                                            <label for="verify-jee-main">Verified</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group rank-field" data-exam="jeeAdvanced">
+                                    <label for="edit-jee-advanced-rank">JEE Advanced Rank</label>
+                                    <div class="rank-input-group">
+                                        <input type="number" id="edit-jee-advanced-rank">
+                                        <div class="verification-toggle">
+                                            <input type="checkbox" id="verify-jee-advanced">
+                                            <label for="verify-jee-advanced">Verified</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group rank-field" data-exam="mhtcet">
+                                    <label for="edit-mhtcet-rank">MHT-CET Rank</label>
+                                    <div class="rank-input-group">
+                                        <input type="number" id="edit-mhtcet-rank">
+                                        <div class="verification-toggle">
+                                            <input type="checkbox" id="verify-mhtcet">
+                                            <label for="verify-mhtcet">Verified</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group rank-field" data-exam="neet">
+                                    <label for="edit-neet-rank">NEET-UG Rank</label>
+                                    <div class="rank-input-group">
+                                        <input type="number" id="edit-neet-rank">
+                                        <div class="verification-toggle">
+                                            <input type="checkbox" id="verify-neet">
+                                            <label for="verify-neet">Verified</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group notes-group">
+                        <label for="admin-notes">Admin Notes</label>
+                        <textarea id="admin-notes" rows="3" placeholder="Add private notes about this user (only visible to admins)"></textarea>
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary cancel-btn">Cancel</button>
+                        <button type="submit" class="btn-primary save-btn">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add User Modal -->
+    <div id="addUserModal" class="admin-modal">
+        <div class="admin-modal-content large-modal">
+            <div class="admin-modal-header">
+                <h2>Add New User</h2>
+                <button class="admin-modal-close">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <form id="add-user-form">
+                    <!-- Add user form fields similar to edit user but with password -->
+                    <!-- Form content will be dynamically loaded -->
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Confirmation Modal -->
+    <div id="confirmationModal" class="admin-modal">
+        <div class="admin-modal-content small-modal">
+            <div class="admin-modal-header">
+                <h2>Confirm Action</h2>
+                <button class="admin-modal-close">&times;</button>
+            </div>
+            <div class="admin-modal-body">
+                <p id="confirmation-message">Are you sure you want to perform this action?</p>
+                
+                <div class="modal-actions">
+                    <button class="btn-secondary cancel-btn">Cancel</button>
+                    <button class="btn-danger confirm-btn">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase and Scripts -->
+    <script type="module">
+      // Import the functions you need from the SDKs you need
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+      import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+      import { getFirestore } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+
+      // Your web app's Firebase configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyC7tvZe9NeHRhYuTVrQnkaSG7Nkj3ZS40U",
+        authDomain: "nextstep-log.firebaseapp.com",
+        projectId: "nextstep-log",
+        storageBucket: "nextstep-log.firebasestorage.app",
+        messagingSenderId: "9308831285",
+        appId: "1:9308831285:web:d55ed6865804c50f743b7c",
+        measurementId: "G-BPGP3TBN3N"
+      };
+
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+
+      // Export for other scripts
+      window.firebaseAuth = auth;
+      window.firebaseDb = db;
+      
+      // Check authentication status for admin
+      onAuthStateChanged(auth, (user) => {
+        if (!user) {
+          // Redirect to login page if not authenticated
+          window.location.href = '../index.html';
+        }
+      });
+    </script>
+    <script type="module" src="js/admin-users.js"></script>
+</body>
+</html>
