@@ -573,8 +573,11 @@ class AuthService {
         if (!this.validateEnhancedForm()) return;
         
         const submitButton = event.target.querySelector('button[type="submit"]');
+    if (submitButton) {  // Check if button exists before using it
         submitButton.disabled = true;
         submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
+    }
+
         
         try {
             // Extract form data
@@ -639,8 +642,11 @@ class AuthService {
             const errorMessage = this.ErrorHandler.mapAuthError(error);
             this.ErrorHandler.displayError('signupPasswordError', errorMessage);
         } finally {
+        if (submitButton) {  // Check again before re-enabling
             submitButton.disabled = false;
             submitButton.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
+        }
+
         }
     }
 
