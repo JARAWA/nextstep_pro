@@ -599,7 +599,7 @@ static setupDynamicExamFields() {
         return true;
     }
     
-    // Enhanced signup handler
+// Enhanced signup handler
 static async handleEnhancedSignup(event) {
     event.preventDefault();
 
@@ -730,39 +730,46 @@ static async handleEnhancedSignup(event) {
             };
 
             // IMPORTANT: Add retry logic with increasing delays
-        let retryCount = 0;
-        const maxRetries = 3;
-        let success = false;
-        
-        while (!success && retryCount < maxRetries) {
-            try {
-                console.log(`Attempt ${retryCount + 1} to store user data for UID: ${userCredential.user.uid}`);
-                
-                // Wait longer between each retry (exponential backoff)
-                if (retryCount > 0) {
-                    const delayMs = 1000 * Math.pow(2, retryCount - 1); // 1s, 2s, 4s...
-                    console.log(`Waiting ${delayMs}ms before retry...`);
-                    await new Promise(resolve => setTimeout(resolve, delayMs));
-                }
-                
-            console.log("Attempting to store user data for UID:", userCredential.user.uid);
+            let retryCount = 0;
+            const maxRetries = 3;
+            let success = false;
             
-            // IMPORTANT: Use a direct document reference with proper path
-            const userDocRef = doc(db, "users", userCredential.user.uid);
-            await setDoc(userDocRef, userData);
-            
-            console.log("User profile data stored successfully");
-        } catch (firestoreError) {
-            console.error(`Firestore error on attempt ${retryCount + 1}:`, firestoreError);
-                retryCount++;
-                
-                // On the last attempt, notify the user
-                if (retryCount >= maxRetries) {
-                    console.error("All attempts to store user data failed");
-                    if (window.showToast) {
-                        window.showToast('Account created but profile data storage failed. Some features may be limited.', 'warning');
+            while (!success && retryCount < maxRetries) {
+                try {
+                    console.log(`Attempt ${retryCount + 1} to store user data for UID: ${userCredential.user.uid}`);
+                    
+                    // Wait longer between each retry (exponential backoff)
+                    if (retryCount > 0) {
+                        const delayMs = 1000 * Math.pow(2, retryCount - 1); // 1s, 2s, 4s...
+                        console.log(`Waiting ${delayMs}ms before retry...`);
+                        await new Promise(resolve => setTimeout(resolve, delayMs));
+                    }
+                    
+                    console.log("Attempting to store user data for UID:", userCredential.user.uid);
+                    
+                    // IMPORTANT: Use a direct document reference with proper path
+                    const userDocRef = doc(db, "users", userCredential.user.uid);
+                    await setDoc(userDocRef, userData);
+                    
+                    console.log("User profile data stored successfully");
+                    success = true; // Mark as successful to exit the loop
+                } catch (firestoreError) {
+                    console.error(`Firestore error on attempt ${retryCount + 1}:`, firestoreError);
+                    retryCount++;
+                    
+                    // On the last attempt, notify the user
+                    if (retryCount >= maxRetries) {
+                        console.error("All attempts to store user data failed");
+                        if (window.showToast) {
+                            window.showToast('Account created but profile data storage failed. Some features may be limited.', 'warning');
+                        }
                     }
                 }
+            } // End of while loop
+        } catch (userDataError) {
+            console.error("Error storing user data:", userDataError);
+            if (window.showToast) {
+                window.showToast('Account created but there was an error saving your profile data.', 'warning');
             }
         }
 
@@ -776,7 +783,6 @@ static async handleEnhancedSignup(event) {
         if (window.Modal && typeof window.Modal.hide === 'function') {
             window.Modal.hide();
         }
-        
 
     } catch (error) {
         console.error("Signup process error:", error);
