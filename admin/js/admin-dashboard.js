@@ -379,7 +379,7 @@ class AdminDashboard {
     // View user profile
     viewUser(userId) {
         // Redirect to user detail page
-         window.location.href = `users.html?userId=${userId}`;
+         window.location.href = `users.html?action=edit&id=${userId}`;
     }
 
     // Edit user 
