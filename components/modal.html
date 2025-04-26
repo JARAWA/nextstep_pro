@@ -33,79 +33,199 @@
             </div>
         </div>
 
-        <!-- Signup Form -->
+<!-- Signup Form -->
 <div id="signupForm" class="auth-form">
-    <h2><i class="fas fa-user-plus"></i> Create Account</h2>
-    <form onsubmit="Auth.handleSignup(event)">
+    <h2>Create an Account</h2>
+    <p class="form-subtitle">Join NextStep for personalized academic guidance</p>
+    
+    <!-- Personal Information -->
+    <div class="form-section">
+        <h3><i class="fas fa-user"></i> Personal Information</h3>
+        
         <div class="form-group">
-            <label for="signupName">Full Name</label>
+            <label for="signupName">Full Name*</label>
             <input type="text" id="signupName" placeholder="Enter your full name" required>
-            <div class="error-message" id="signupNameError"></div>
+            <div id="signupNameError" class="error-message"></div>
         </div>
         
         <div class="form-group">
-            <label for="signupEmail">Email</label>
+            <label for="signupEmail">Email Address*</label>
             <input type="email" id="signupEmail" placeholder="Enter your email" required>
-            <div class="error-message" id="signupEmailError"></div>
+            <div id="signupEmailError" class="error-message"></div>
         </div>
         
         <div class="form-group">
-            <label for="signupPassword">Password</label>
-            <div class="password-input-container">
-                <input type="password" id="signupPassword" 
-                       placeholder="Create a password" 
-                       required
-                       onkeyup="Modal.checkPasswordStrength(this.value)">
+            <label for="mobileNumber">Mobile Number*</label>
+            <input type="tel" id="mobileNumber" placeholder="Enter 10-digit mobile number" required>
+            <div id="mobileNumberError" class="error-message"></div>
+        </div>
+    </div>
+    
+    <!-- Academic Information -->
+    <div class="form-section">
+        <h3><i class="fas fa-graduation-cap"></i> Academic Information</h3>
+        
+        <div class="form-group checkbox-group">
+            <label>Select applicable exams:</label>
+            <div class="checkbox-container">
+                <input type="checkbox" id="hasJeeMain" class="exam-checkbox">
+                <label for="hasJeeMain">JEE Main</label>
+            </div>
+            <div class="checkbox-container">
+                <input type="checkbox" id="hasJeeAdvanced" class="exam-checkbox">
+                <label for="hasJeeAdvanced">JEE Advanced</label>
+            </div>
+            <div class="checkbox-container">
+                <input type="checkbox" id="hasMhtcet" class="exam-checkbox">
+                <label for="hasMhtcet">MHT-CET</label>
+            </div>
+            <div class="checkbox-container">
+                <input type="checkbox" id="hasNeet" class="exam-checkbox">
+                <label for="hasNeet">NEET-UG</label>
+            </div>
+        </div>
+        
+        <!-- Dynamic rank fields based on selected exams -->
+        <div id="dynamicRankFields">
+            <!-- These fields will be populated by JS based on checkbox selection -->
+        </div>
+    </div>
+    
+    <!-- Create Account -->
+    <div class="form-section">
+        <h3><i class="fas fa-lock"></i> Create Password</h3>
+        
+        <div class="form-group">
+            <label for="signupPassword">Password*</label>
+            <div class="password-input">
+                <input type="password" id="signupPassword" placeholder="Create a strong password" required onkeyup="Modal.checkPasswordStrength(this.value)">
                 <i class="fas fa-eye toggle-password" onclick="Modal.togglePasswordVisibility('signupPassword', this)"></i>
             </div>
-            
-            <div class="password-strength">
-                <div class="strength-meter">
-                    <div class="meter-section"></div>
-                    <div class="meter-section"></div>
-                    <div class="meter-section"></div>
-                    <div class="meter-section"></div>
-                </div>
-                <span class="strength-text">Password Strength</span>
+            <div id="signupPasswordError" class="error-message"></div>
+        </div>
+        
+        <div class="password-strength">
+            <div class="strength-text">Password Strength</div>
+            <div class="strength-meter">
+                <div class="meter-section"></div>
+                <div class="meter-section"></div>
+                <div class="meter-section"></div>
+                <div class="meter-section"></div>
+                <div class="meter-section"></div>
             </div>
-            
-            <div class="password-requirements">
-                <div class="requirement" id="length">
-                    <i class="fas fa-circle"></i> At least 8 characters
+            <div class="requirements">
+                <div class="requirement">
+                    <i id="length" class="far fa-circle"></i>
+                    <span>At least 8 characters</span>
                 </div>
-                <div class="requirement" id="uppercase">
-                    <i class="fas fa-circle"></i> One uppercase letter
+                <div class="requirement">
+                    <i id="uppercase" class="far fa-circle"></i>
+                    <span>Uppercase letter</span>
                 </div>
-                <div class="requirement" id="lowercase">
-                    <i class="fas fa-circle"></i> One lowercase letter
+                <div class="requirement">
+                    <i id="lowercase" class="far fa-circle"></i>
+                    <span>Lowercase letter</span>
                 </div>
-                <div class="requirement" id="number">
-                    <i class="fas fa-circle"></i> One number
+                <div class="requirement">
+                    <i id="number" class="far fa-circle"></i>
+                    <span>Number</span>
                 </div>
-                <div class="requirement" id="special">
-                    <i class="fas fa-circle"></i> One special character
+                <div class="requirement">
+                    <i id="special" class="far fa-circle"></i>
+                    <span>Special character</span>
                 </div>
             </div>
         </div>
         
         <div class="form-group">
-            <label for="confirmPassword">Confirm Password</label>
-            <div class="password-input-container">
+            <label for="confirmPassword">Confirm Password*</label>
+            <div class="password-input">
                 <input type="password" id="confirmPassword" placeholder="Confirm your password" required>
                 <i class="fas fa-eye toggle-password" onclick="Modal.togglePasswordVisibility('confirmPassword', this)"></i>
             </div>
-            <div class="error-message" id="confirmPasswordError"></div>
+            <div id="confirmPasswordError" class="error-message"></div>
         </div>
-        
-        <button type="submit" class="btn signup-btn">
-            <i class="fas fa-user-plus"></i> Create Account
-        </button>
-    </form>
+    </div>
     
-    <div class="modal-footer">
-        <p>Already have an account? <a href="#" onclick="Modal.toggleForms('login')">Login</a></p>
+    <div class="form-group">
+        <div class="terms-checkbox">
+            <input type="checkbox" id="termsAgreed" required>
+            <label for="termsAgreed">I agree to the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a></label>
+        </div>
+        <div id="termsError" class="error-message"></div>
+    </div>
+    
+    <button type="submit" class="btn auth-btn" onclick="Auth.handleEnhancedSignup(event)">
+        <i class="fas fa-user-plus"></i> Create Account
+    </button>
+    
+    <div class="auth-footer">
+        Already have an account? <a href="#" onclick="Modal.toggleForms('login'); return false;">Login</a>
     </div>
 </div>
+
+<style>
+.form-section {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.form-section h3 {
+    font-size: 16px;
+    margin-bottom: 15px;
+    color: #2c3e50;
+}
+
+.checkbox-group {
+    margin-bottom: 10px;
+}
+
+.checkbox-container {
+    display: inline-block;
+    margin-right: 15px;
+    margin-bottom: 10px;
+}
+
+.checkbox-container input[type="checkbox"] {
+    margin-right: 5px;
+}
+
+.rank-field {
+    background-color: #f8f9fa;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.rank-field.active {
+    background-color: #e8f4fc;
+}
+
+.form-subtitle {
+    text-align: center;
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.terms-checkbox {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 5px;
+}
+
+.terms-checkbox input {
+    margin-top: 3px;
+    margin-right: 8px;
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 14px;
+}
+</style>
 
         <!-- Forgot Password Form -->
         <div id="forgotPasswordForm" class="auth-form">
