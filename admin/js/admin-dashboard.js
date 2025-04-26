@@ -1,58 +1,4 @@
-// View user profile
-    viewUser(userId) {
-        // Redirect to user detail page
-        window.location.href = `user-detail.html?id=${userId}`;
-    }
-
-    // Edit user 
-    editUser(userId) {
-        // Redirect to user management page with user ID
-        window.location.href = `users.html?action=edit&id=${userId}`;
-    }
-
-    // Handle logout
-    async handleLogout() {
-        try {
-            await signOut(this.auth);
-            window.location.href = '../index.html';
-        } catch (error) {
-            console.error('Logout error:', error);
-            this.showToast('Error logging out', 'error');
-        }
-    }
-
-    // Show toast notification
-    showToast(message, type = 'info') {
-        // Check if there's a global showToast function
-        if (typeof window.showToast === 'function') {
-            window.showToast(message, type);
-            return;
-        }
-        
-        // Create toast element
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.textContent = message;
-        document.body.appendChild(toast);
-        
-        // Show toast with animation
-        setTimeout(() => {
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => {
-                    document.body.removeChild(toast);
-                }, 300);
-            }, 3000);
-        }, 100);
-    }
-}
-
-// Initialize the dashboard
-const adminDashboard = new AdminDashboard();
-
-// Expose to global scope for event handlers
-window.adminDashboard = adminDashboard; Import Firebase modules
+// Import Firebase modules
 import { 
     getAuth, 
     signOut, 
@@ -430,4 +376,58 @@ class AdminDashboard {
         this.renderExamDistributionChart();
     }
 
-    //
+    // View user profile
+    viewUser(userId) {
+        // Redirect to user detail page
+        window.location.href = `user-detail.html?id=${userId}`;
+    }
+
+    // Edit user 
+    editUser(userId) {
+        // Redirect to user management page with user ID
+        window.location.href = `users.html?action=edit&id=${userId}`;
+    }
+
+    // Handle logout
+    async handleLogout() {
+        try {
+            await signOut(this.auth);
+            window.location.href = '../index.html';
+        } catch (error) {
+            console.error('Logout error:', error);
+            this.showToast('Error logging out', 'error');
+        }
+    }
+
+    // Show toast notification
+    showToast(message, type = 'info') {
+        // Check if there's a global showToast function
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
+            return;
+        }
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        // Show toast with animation
+        setTimeout(() => {
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }, 100);
+    }
+}
+
+// Initialize the dashboard
+const adminDashboard = new AdminDashboard();
+
+// Expose to global scope for event handlers
+window.adminDashboard = adminDashboard;
