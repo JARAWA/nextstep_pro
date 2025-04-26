@@ -92,6 +92,7 @@
     </div>
     
     <!-- Create Account -->
+    <form onsubmit="Auth.handleEnhancedSignup(event)">
     <div class="form-section">
         <h3><i class="fas fa-lock"></i> Create Password</h3>
         
@@ -155,9 +156,10 @@
         <div id="termsError" class="error-message"></div>
     </div>
     
-    <button type="submit" class="btn auth-btn" onclick="Auth.handleEnhancedSignup(event)">
-        <i class="fas fa-user-plus"></i> Create Account
-    </button>
+        <button type="submit" class="btn auth-btn">
+            <i class="fas fa-user-plus"></i> Create Account
+        </button>
+    </form>
     
     <div class="auth-footer">
         Already have an account? <a href="#" onclick="Modal.toggleForms('login'); return false;">Login</a>
