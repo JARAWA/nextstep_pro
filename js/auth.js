@@ -470,6 +470,7 @@ class AuthService {
                 this.renderDynamicFields(examCheckboxes, dynamicRankFields, examRankFields);
             });
         });
+        this.populateExamFields();
     }
     
     // Render dynamic rank fields based on selected exams
@@ -572,107 +573,310 @@ class AuthService {
     }
     
     // Enhanced signup handler
-    static async handleEnhancedSignup(event) {
-        event.preventDefault();
+static async handleEnhancedSignup(event) {
+    event.preventDefault();
 
-        const nameInput = document.getElementById('signupName');
-        const emailInput = document.getElementById('signupEmail');
-        const passwordInput = document.getElementById('signupPassword');
-        const confirmPasswordInput = document.getElementById('confirmPassword');
-        const mobileInput = document.getElementById('signupMobile') || { value: '' }; // Optional field
-        const submitButton = event.target.querySelector('button[type="submit"]');
+    const nameInput = document.getElementById('signupName');
+    const emailInput = document.getElementById('signupEmail');
+    const passwordInput = document.getElementById('signupPassword');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const mobileInput = document.getElementById('mobileNumber');
+    const submitButton = event.target.querySelector('button[type="submit"]');
 
-        const validationInputs = [
-            {
-                element: nameInput,
-                value: nameInput.value.trim(),
-                validator: this.Validator.name,
-                errorField: 'signupNameError'
-            },
-            {
-                element: emailInput,
-                value: emailInput.value.trim(),
-                validator: this.Validator.email,
-                errorField: 'signupEmailError'
-            },
-            {
-                element: passwordInput,
-                value: passwordInput.value,
-                validator: this.Validator.password,
-                errorField: 'signupPasswordError'
-            }
-        ];
-
-        if (!this.validateForm(validationInputs)) return;
-
-        if (passwordInput.value !== confirmPasswordInput.value) {
-            this.ErrorHandler.displayError('confirmPasswordError', 'Passwords do not match');
-            return;
+    const validationInputs = [
+        {
+            element: nameInput,
+            value: nameInput.value.trim(),
+            validator: this.Validator.name,
+            errorField: 'signupNameError'
+        },
+        {
+            element: emailInput,
+            value: emailInput.value.trim(),
+            validator: this.Validator.email,
+            errorField: 'signupEmailError'
+        },
+        {
+            element: mobileInput,
+            value: mobileInput.value.trim(),
+            validator: this.Validator.mobileNumber,
+            errorField: 'mobileNumberError'
+        },
+        {
+            element: passwordInput,
+            value: passwordInput.value,
+            validator: this.Validator.password,
+            errorField: 'signupPasswordError'
         }
+    ];
 
-        try {
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
+    if (!this.validateForm(validationInputs)) return;
 
-            // Create user with Firebase Auth
-            const userCredential = await createUserWithEmailAndPassword(
-                auth, 
-                emailInput.value.trim(), 
-                passwordInput.value
-            );
-
-            // Update profile with display name
-            await updateProfile(userCredential.user, {
-                displayName: nameInput.value.trim()
-            });
-
-            // Send verification email
-            await sendEmailVerification(userCredential.user);
-
-            // Now create user profile document in Firestore
-            try {
-                // Create user profile with required fields
-                await setDoc(doc(db, "users", userCredential.user.uid), {
-                    name: nameInput.value.trim(),
-                    email: emailInput.value.trim(),
-                    mobileNumber: mobileInput.value.trim(),
-                    userRole: "student", // Default role for new users
-                    examData: {}, // Empty object for future exam data
-                    createdAt: new Date().toISOString(),
-                    lastUpdated: new Date().toISOString()
-                });
-                
-                console.log("User profile data loaded:", {
-                    name: nameInput.value.trim(),
-                    email: emailInput.value.trim(),
-                    mobileNumber: mobileInput.value.trim(),
-                    examData: {},
-                    createdAt: new Date().toISOString()
-                });
-            } catch (firestoreError) {
-                console.error("Signup error:", firestoreError);
-                this.ErrorHandler.displayError('signupError', 'Account created but failed to save profile data.');
-            }
-
-            if (window.showToast) {
-                window.showToast('Account created! Please verify your email.', 'success');
-            }
-
-            event.target.reset();
-
-            if (window.Modal && typeof window.Modal.hide === 'function') {
-                window.Modal.hide();
-            }
-
-        } catch (error) {
-            const errorMessage = this.ErrorHandler.mapAuthError(error);
-            this.ErrorHandler.displayError('signupPasswordError', errorMessage);
-        } finally {
-            submitButton.disabled = false;
-            submitButton.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
-        }
+    if (passwordInput.value !== confirmPasswordInput.value) {
+        this.ErrorHandler.displayError('confirmPasswordError', 'Passwords do not match');
+        return;
     }
 
+    // Validate exam checkbox selections and their corresponding rank inputs
+    const examCheckboxes = document.querySelectorAll('.exam-checkbox:checked');
+    const examRankValidations = Array.from(examCheckboxes).map(checkbox => {
+        const examType = checkbox.id.replace('has', '');
+        const fieldId = examType + 'Rank';
+        const rankInput = document.getElementById(fieldId);
+        
+        if (!rankInput) return null;
+        
+        return {
+            element: rankInput,
+            value: rankInput.value.trim(),
+            validator: (value) => ({
+                isValid: /^\d+$/.test(value) && parseInt(value) > 0,
+                error: `Please enter a valid ${examType} rank number`
+            }),
+            errorField: `${fieldId}Error`
+        };
+    }).filter(Boolean);
+    
+    if (examRankValidations.length > 0 && !this.validateForm(examRankValidations)) {
+        return;
+    }
+
+    try {
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
+
+        // Create user with Firebase Auth
+        const userCredential = await createUserWithEmailAndPassword(
+            auth, 
+            emailInput.value.trim(), 
+            passwordInput.value
+        );
+
+        // Update profile with display name
+        await updateProfile(userCredential.user, {
+            displayName: nameInput.value.trim()
+        });
+
+        // Send verification email
+        await sendEmailVerification(userCredential.user);
+
+        // Collect exam data from selected exams and their rank fields
+        const examData = {};
+        examCheckboxes.forEach(checkbox => {
+            const examType = checkbox.id.replace('has', '');
+            const fieldId = examType + 'Rank';
+            const rankInput = document.getElementById(fieldId);
+            
+            if (rankInput && rankInput.value.trim()) {
+                examData[examType] = {
+                    rank: parseInt(rankInput.value.trim()),
+                    dateAdded: new Date().toISOString()
+                };
+            }
+        });
+
+        // Now create user profile document in Firestore
+        try {
+            // Create user profile with required fields and exam data
+            await setDoc(doc(db, "users", userCredential.user.uid), {
+                name: nameInput.value.trim(),
+                email: emailInput.value.trim(),
+                mobileNumber: mobileInput.value.trim(),
+                userRole: "student", // Default role for new users
+                examData: examData, // Store the collected exam data
+                createdAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString()
+            });
+            
+            console.log("User profile data loaded:", {
+                name: nameInput.value.trim(),
+                email: emailInput.value.trim(),
+                mobileNumber: mobileInput.value.trim(),
+                examData: examData,
+                createdAt: new Date().toISOString()
+            });
+        } catch (firestoreError) {
+            console.error("Signup error:", firestoreError);
+            this.ErrorHandler.displayError('signupError', 'Account created but failed to save profile data.');
+        }
+
+        if (window.showToast) {
+            window.showToast('Account created! Please verify your email.', 'success');
+        }
+
+        event.target.reset();
+
+        if (window.Modal && typeof window.Modal.hide === 'function') {
+            window.Modal.hide();
+        }
+
+    } catch (error) {
+        const errorMessage = this.ErrorHandler.mapAuthError(error);
+        this.ErrorHandler.displayError('signupPasswordError', errorMessage);
+    } finally {
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
+    }
+}
+
+    static async updateExamData(examUpdates) {
+    if (!this.user) {
+        if (window.showToast) {
+            window.showToast('You must be logged in to update exam data', 'error');
+        }
+        return false;
+    }
+    
+    try {
+        const userDocRef = doc(db, "users", this.user.uid);
+        
+        // First get current user data to merge with updates
+        const userDoc = await getDoc(userDocRef);
+        if (!userDoc.exists()) {
+            throw new Error('User profile not found');
+        }
+        
+        const userData = userDoc.data();
+        const currentExamData = userData.examData || {};
+        
+        // Merge current exam data with updates
+        const updatedExamData = {
+            ...currentExamData,
+            ...examUpdates
+        };
+        
+        // Update only the examData field and lastUpdated timestamp
+        await updateDoc(userDocRef, {
+            examData: updatedExamData,
+            lastUpdated: new Date().toISOString()
+        });
+        
+        console.log("Exam data updated successfully:", updatedExamData);
+        
+        if (window.showToast) {
+            window.showToast('Exam information updated successfully', 'success');
+        }
+        
+        return true;
+    } catch (error) {
+        console.error("Error updating exam data:", error);
+        
+        if (window.showToast) {
+            window.showToast('Failed to update exam information', 'error');
+        }
+        
+        return false;
+    }
+}
+
+    static async handleExamDataForm(event) {
+    event.preventDefault();
+    
+    const examCheckboxes = document.querySelectorAll('.exam-checkbox:checked');
+    const submitButton = event.target.querySelector('button[type="submit"]');
+    
+    // Validate all exam rank inputs
+    const examRankValidations = Array.from(examCheckboxes).map(checkbox => {
+        const examType = checkbox.id.replace('has', '');
+        const fieldId = examType + 'Rank';
+        const rankInput = document.getElementById(fieldId);
+        
+        if (!rankInput) return null;
+        
+        return {
+            element: rankInput,
+            value: rankInput.value.trim(),
+            validator: (value) => ({
+                isValid: /^\d+$/.test(value) && parseInt(value) > 0,
+                error: `Please enter a valid ${examType} rank number`
+            }),
+            errorField: `${fieldId}Error`
+        };
+    }).filter(Boolean);
+    
+    if (examRankValidations.length > 0 && !this.validateForm(examRankValidations)) {
+        return;
+    }
+    
+    try {
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+        
+        // Collect exam data from selected exams and their rank fields
+        const examData = {};
+        examCheckboxes.forEach(checkbox => {
+            const examType = checkbox.id.replace('has', '');
+            const fieldId = examType + 'Rank';
+            const rankInput = document.getElementById(fieldId);
+            
+            if (rankInput && rankInput.value.trim()) {
+                examData[examType] = {
+                    rank: parseInt(rankInput.value.trim()),
+                    dateUpdated: new Date().toISOString()
+                };
+            }
+        });
+        
+        // Update exam data in Firestore
+        const success = await this.updateExamData(examData);
+        
+        if (success && window.showToast) {
+            window.showToast('Exam information updated successfully', 'success');
+        }
+        
+    } catch (error) {
+        console.error("Error updating exam data:", error);
+        
+        if (window.showToast) {
+            window.showToast('Failed to update exam information', 'error');
+        }
+    } finally {
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+    }
+}
+
+    static async populateExamFields() {
+    if (!this.user) return;
+    
+    try {
+        // Fetch user data
+        const userData = await this.fetchUserProfile();
+        if (!userData || !userData.examData) return;
+        
+        const examData = userData.examData;
+        
+        // For each exam type in the user's data, check the corresponding checkbox
+        // and populate the rank field
+        Object.keys(examData).forEach(examType => {
+            const checkboxId = 'has' + examType;
+            const checkbox = document.getElementById(checkboxId);
+            
+            if (checkbox) {
+                // Check the box
+                checkbox.checked = true;
+                
+                // Trigger the change event to render the field
+                const changeEvent = new Event('change', { bubbles: true });
+                checkbox.dispatchEvent(changeEvent);
+                
+                // Wait for the field to render, then populate it
+                setTimeout(() => {
+                    const rankInputId = examType + 'Rank';
+                    const rankInput = document.getElementById(rankInputId);
+                    
+                    if (rankInput && examData[examType].rank) {
+                        rankInput.value = examData[examType].rank;
+                    }
+                }, 100);
+            }
+        });
+    } catch (error) {
+        console.error("Error populating exam fields:", error);
+    }
+}
+
+    
     static async handleLogin(event) {
         event.preventDefault();
 
