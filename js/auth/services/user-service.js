@@ -10,7 +10,7 @@ import {
     query,
     where,
     getDocs
-} from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
 import { db } from './firebase-config.js';
 import { ErrorHandler } from '../utils/error-handler.js';
