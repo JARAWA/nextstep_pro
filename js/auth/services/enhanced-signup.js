@@ -18,22 +18,28 @@ class EnhancedSignupService {
      * Initialize enhanced signup functionality
      */
     static init() {
-        // Set up exam field handlers
-        ExamService.init();
-        
-        // Replace form submission handler
-        const signupForm = document.querySelector('#signupForm form') || document.getElementById('signupForm');
-        if (signupForm) {
-            // Remove all existing listeners by cloning and replacing the element
-            const newForm = signupForm.cloneNode(true);
-            signupForm.parentNode.replaceChild(newForm, signupForm);
-            
-            // Add our single event listener
-            newForm.addEventListener('submit', (e) => this.handleEnhancedSignup(e));
-            
-            console.log('Enhanced signup handler attached');
+    // Set up exam field handlers
+    ExamService.init();
+    
+    // Replace form submission handler
+    const signupForm = document.querySelector('#signupForm form') || document.getElementById('signupForm');
+    if (signupForm) {
+        // First, remove any existing handlers
+        const oldHandler = signupForm._enhancedHandler;
+        if (oldHandler) {
+            signupForm.removeEventListener('submit', oldHandler);
         }
+        
+        // Create new handler and store reference
+        const handler = (e) => this.handleEnhancedSignup(e);
+        signupForm._enhancedHandler = handler;
+        
+        // Add event listener
+        signupForm.addEventListener('submit', handler);
+        
+        console.log('Enhanced signup handler attached (single instance)');
     }
+}
     
     /**
      * Validate the enhanced signup form
@@ -110,6 +116,11 @@ class EnhancedSignupService {
         const passwordInput = document.getElementById('signupPassword');
         const mobileInput = document.getElementById('mobileNumber');
         const submitButton = event.target.querySelector('button[type="submit"]');
+            // Guard against double submission
+    if (submitButton.disabled) {
+        console.log('Preventing duplicate submission');
+        return;
+    }
 
         // Form validation
         if (!this.validateEnhancedForm()) return;
@@ -149,6 +160,7 @@ class EnhancedSignupService {
 
             // Step 3: Collect exam data
             const examData = ExamService.collectExamDataFromForm();
+            console.log("Collected exam data:", JSON.stringify(examData));
 
             // Step 4: Create Firestore user document
             try {
@@ -162,9 +174,19 @@ class EnhancedSignupService {
                     lastUpdated: new Date().toISOString()
                 };
 
+                console.log("Attempting to store user data with exams:", 
+                Object.keys(examData).length, "exam entries");
+
                 // Use retry logic with increasing delays via UserService
                 const success = await UserService.createUserProfile(userCredential.user, userData);
-                
+
+                    if (success) {
+                        console.log("User profile stored successfully with exam data:", 
+                                    Object.keys(examData).length, "exam entries");
+                    } else {
+                        console.error("Failed to store user profile with exam data");
+                        throw new Error("Profile storage failed");
+                        
                 if (!success) {
                     console.error("All attempts to store user data failed");
                     if (window.showToast) {
