@@ -13,6 +13,18 @@ import {
     getIdToken
 } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
 
+import { 
+    getFirestore, 
+    doc, 
+    setDoc,
+    getDoc,
+    collection,
+    query,
+    where,
+    getDocs,
+    updateDoc
+} from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+
 // Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyC7tvZe9NeHRhYuTVrQnkaSG7Nkj3ZS40U",
@@ -28,14 +40,16 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
+const db = getFirestore(app);
 
-export default class AuthService {
+class AuthService {
     // Class properties
     static isLoggedIn = false;
     static user = null;
     static authToken = null;
     static tokenRefreshInterval = null;
     static lastTokenRefresh = null;
+    static userData = null;
 
     // Constants
     static TOKEN_REFRESH_INTERVAL = 45 * 60 * 1000; // 45 minutes
@@ -87,7 +101,16 @@ export default class AuthService {
         name: (name) => ({
             isValid: name.trim().length >= 2,
             error: 'Name must be at least 2 characters long'
-        })
+        }),
+        
+        mobileNumber: (number) => {
+            // Indian mobile number validation - 10 digits
+            const mobileRegex = /^[6-9]\d{9}$/;
+            return {
+                isValid: mobileRegex.test(number.trim()),
+                error: 'Please enter a valid 10-digit mobile number'
+            };
+        }
     };
 
     // Error Handler Utility
@@ -149,6 +172,23 @@ export default class AuthService {
         this.setupAuthStateListener();
         this.setupAuthButtons();
         await this.checkExistingSession();
+    }
+    
+    // Enhanced initialization with extended features
+    static async initExtended() {
+        console.log('Initializing Enhanced Authentication Service');
+        // Call the original init method first
+        await this.init();
+        
+        // Set up dynamic exam field handlers
+        this.setupDynamicExamFields();
+        
+        // Override the signup form submission if needed
+        const signupForm = document.querySelector('#signupForm form') || document.getElementById('signupForm');
+        if (signupForm) {
+            signupForm.removeEventListener('submit', this.handleSignup);
+            signupForm.addEventListener('submit', (e) => this.handleEnhancedSignup(e));
+        }
     }
 
     // Check for existing session
@@ -385,6 +425,224 @@ export default class AuthService {
             submitButton.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
         }
     }
+    
+    // Set up dynamic exam fields
+    static setupDynamicExamFields() {
+        const examCheckboxes = document.querySelectorAll('.exam-checkbox');
+        const dynamicRankFields = document.getElementById('dynamicRankFields');
+        
+        if (!examCheckboxes || !dynamicRankFields) return;
+        
+        const examRankFields = {
+            hasJeeMain: {
+                id: 'jeeMainRank',
+                label: 'JEE Main Rank',
+                placeholder: 'Enter your JEE Main rank'
+            },
+            hasJeeAdvanced: {
+                id: 'jeeAdvancedRank',
+                label: 'JEE Advanced Rank',
+                placeholder: 'Enter your JEE Advanced rank'
+            },
+            hasMhtcet: {
+                id: 'mhtcetRank',
+                label: 'MHT-CET Rank',
+                placeholder: 'Enter your MHT-CET rank'
+            },
+            hasNeet: {
+                id: 'neetRank',
+                label: 'NEET-UG Rank',
+                placeholder: 'Enter your NEET-UG rank'
+            }
+        };
+        
+        // Initial render based on defaults
+        this.renderDynamicFields(examCheckboxes, dynamicRankFields, examRankFields);
+        
+        // Update fields on checkbox changes
+        examCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                this.renderDynamicFields(examCheckboxes, dynamicRankFields, examRankFields);
+            });
+        });
+    }
+    
+    // Render dynamic rank fields based on selected exams
+    static renderDynamicFields(checkboxes, container, fieldConfigs) {
+        container.innerHTML = '';
+        
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                const fieldConfig = fieldConfigs[checkbox.id];
+                if (fieldConfig) {
+                    const fieldDiv = document.createElement('div');
+                    fieldDiv.className = 'form-group rank-field active';
+                    fieldDiv.innerHTML = `
+                        <label for="${fieldConfig.id}">${fieldConfig.label}*</label>
+                        <input type="number" id="${fieldConfig.id}" placeholder="${fieldConfig.placeholder}" required>
+                        <div id="${fieldConfig.id}Error" class="error-message"></div>
+                    `;
+                    container.appendChild(fieldDiv);
+                }
+            }
+        });
+    }
+    
+    // Enhanced form validation
+    static validateEnhancedForm() {
+        const nameInput = document.getElementById('signupName');
+        const emailInput = document.getElementById('signupEmail');
+        const mobileInput = document.getElementById('mobileNumber');
+        const passwordInput = document.getElementById('signupPassword');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const termsCheckbox = document.getElementById('termsAgreed');
+        
+        // Core validation
+        const coreValidation = [
+            {
+                element: nameInput,
+                value: nameInput.value.trim(),
+                validator: this.Validator.name,
+                errorField: 'signupNameError'
+            },
+            {
+                element: emailInput,
+                value: emailInput.value.trim(),
+                validator: this.Validator.email,
+                errorField: 'signupEmailError'
+            },
+            {
+                element: mobileInput,
+                value: mobileInput.value.trim(),
+                validator: this.Validator.mobileNumber,
+                errorField: 'mobileNumberError'
+            },
+            {
+                element: passwordInput,
+                value: passwordInput.value,
+                validator: this.Validator.password,
+                errorField: 'signupPasswordError'
+            }
+        ];
+        
+        if (!this.validateForm(coreValidation)) return false;
+        
+        // Password match validation
+        if (passwordInput.value !== confirmPasswordInput.value) {
+            this.ErrorHandler.displayError('confirmPasswordError', 'Passwords do not match');
+            confirmPasswordInput.focus();
+            return false;
+        }
+        
+        // Terms validation
+        if (!termsCheckbox.checked) {
+            this.ErrorHandler.displayError('termsError', 'You must agree to the terms and conditions');
+            return false;
+        }
+        
+        // Validate exam rank fields if applicable
+        const examCheckboxes = document.querySelectorAll('.exam-checkbox:checked');
+        const examValidations = Array.from(examCheckboxes).map(checkbox => {
+            const fieldId = checkbox.id.replace('has', '') + 'Rank';
+            const rankInput = document.getElementById(fieldId);
+            
+            if (!rankInput) return null;
+            
+            return {
+                element: rankInput,
+                value: rankInput.value.trim(),
+                validator: (value) => ({
+                    isValid: /^\d+$/.test(value) && parseInt(value) > 0,
+                    error: 'Please enter a valid rank number'
+                }),
+                errorField: `${fieldId}Error`
+            };
+        }).filter(Boolean);
+        
+        if (examValidations.length > 0 && !this.validateForm(examValidations)) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    // Handle enhanced signup with user data collection
+    static async handleEnhancedSignup(event) {
+        event.preventDefault();
+        
+        if (!this.validateEnhancedForm()) return;
+        
+        const submitButton = event.target.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
+        
+        try {
+            // Extract form data
+            const userData = {
+                name: document.getElementById('signupName').value.trim(),
+                email: document.getElementById('signupEmail').value.trim(),
+                mobileNumber: document.getElementById('mobileNumber').value.trim(),
+                examData: {},
+                createdAt: new Date().toISOString(),
+                userRole: 'student',
+                isActive: true
+            };
+            
+            // Get exam data
+            const examCheckboxes = document.querySelectorAll('.exam-checkbox');
+            examCheckboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    const examKey = checkbox.id.replace('has', '');
+                    const rankFieldId = examKey + 'Rank';
+                    const rankInput = document.getElementById(rankFieldId);
+                    
+                    if (rankInput) {
+                        userData.examData[examKey] = {
+                            rank: parseInt(rankInput.value.trim()),
+                            verified: false
+                        };
+                    }
+                }
+            });
+            
+            // Create Firebase user
+            const userCredential = await createUserWithEmailAndPassword(
+                auth, 
+                userData.email, 
+                document.getElementById('signupPassword').value
+            );
+            
+            // Update profile
+            await updateProfile(userCredential.user, {
+                displayName: userData.name
+            });
+            
+            // Save user data to Firestore
+            userData.uid = userCredential.user.uid;
+            await setDoc(doc(db, "users", userCredential.user.uid), userData);
+            
+            // Send verification email
+            await sendEmailVerification(userCredential.user);
+            
+            if (window.showToast) {
+                window.showToast('Account created! Please verify your email.', 'success');
+            }
+            
+            event.target.reset();
+            
+            if (window.Modal && typeof window.Modal.hide === 'function') {
+                window.Modal.hide();
+            }
+            
+        } catch (error) {
+            console.error("Signup error:", error);
+            const errorMessage = this.ErrorHandler.mapAuthError(error);
+            this.ErrorHandler.displayError('signupPasswordError', errorMessage);
+        } finally {
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
+        }
+    }
 
     static async handleLogin(event) {
         event.preventDefault();
@@ -461,6 +719,46 @@ export default class AuthService {
             this.ErrorHandler.displayError('googleLoginError', errorMessage);
         }
     }
+    
+    static async handleForgotPassword(event) {
+        event.preventDefault();
+        
+        const emailInput = document.getElementById('resetEmail');
+        const submitButton = event.target.querySelector('button[type="submit"]');
+        
+        const validationInputs = [
+            {
+                element: emailInput,
+                value: emailInput.value.trim(),
+                validator: this.Validator.email,
+                errorField: 'resetEmailError'
+            }
+        ];
+        
+        if (!this.validateForm(validationInputs)) return;
+        
+        try {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            
+            await sendPasswordResetEmail(auth, emailInput.value.trim());
+            
+            if (window.showToast) {
+                window.showToast('Password reset email sent!', 'success');
+            }
+            
+            if (window.Modal && typeof window.Modal.toggleForms === 'function') {
+                window.Modal.toggleForms('login');
+            }
+            
+        } catch (error) {
+            const errorMessage = this.ErrorHandler.mapAuthError(error);
+            this.ErrorHandler.displayError('resetEmailError', errorMessage);
+        } finally {
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="fas fa-paper-plane"></i> Send Reset Link';
+        }
+    }
 
     static async logout() {
         try {
@@ -533,12 +831,64 @@ export default class AuthService {
         return true;
     }
     
-    // Add a new method to fetch user profile
+    // Override the fetchUserProfile method to get additional user data
     static async fetchUserProfile() {
-        // This is a placeholder for any additional user profile fetching logic
-        console.log('User profile fetched for:', this.user.email);
+        if (!this.user) return null;
+        
+        try {
+            const userDoc = await getDoc(doc(db, "users", this.user.uid));
+            
+            if (userDoc.exists()) {
+                this.userData = userDoc.data();
+                console.log('User profile data loaded:', this.userData);
+                
+                // Check if user is admin and update UI accordingly
+                if (this.userData.userRole === 'admin') {
+                    this.enableAdminFeatures();
+                }
+            } else {
+                console.log('No additional user data found');
+                
+                // Create basic user record if not exists
+                const basicData = {
+                    uid: this.user.uid,
+                    name: this.user.displayName || '',
+                    email: this.user.email,
+                    createdAt: new Date().toISOString(),
+                    userRole: 'student',
+                    isActive: true
+                };
+                
+                await setDoc(doc(db, "users", this.user.uid), basicData);
+                this.userData = basicData;
+            }
+            
+            return this.userData;
+        } catch (error) {
+            console.error('Error fetching user profile:', error);
+            return null;
+        }
+    }
+    
+    // Enable admin-specific features in the UI
+    static enableAdminFeatures() {
+        // Add admin panel link to navigation
+        const navContainer = document.querySelector('.nav-links');
+        if (navContainer && !document.getElementById('admin-link')) {
+            const adminLink = document.createElement('li');
+            adminLink.id = 'admin-link';
+            adminLink.innerHTML = `
+                <a href="admin/dashboard.html" class="admin-link">
+                    <i class="fas fa-user-shield"></i> Admin Panel
+                </a>
+            `;
+            navContainer.appendChild(adminLink);
+        }
     }
 }
 
 // Expose to global scope
 window.Auth = AuthService;
+
+// Export for module usage
+export default AuthService;
