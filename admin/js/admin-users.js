@@ -679,7 +679,7 @@ class AdminUserManagement {
     // View user details
     viewUser(userId) {
         // Redirect to user detail page
-        window.location.href = `user-detail.html?id=${userId}`;
+        window.location.href = `users.html?userId=${userId}`;
     }
 
     // Edit user 
