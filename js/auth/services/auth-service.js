@@ -398,3 +398,9 @@ class AuthService {
         });
     }
 }
+
+// Export AuthService as a named export
+export { AuthService };
+
+// You can also add a default export if you want
+export default AuthService;
