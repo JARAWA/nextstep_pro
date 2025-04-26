@@ -62,30 +62,5 @@ function showToast(message, type = 'info') {
     }, 100);
 }
 
-async function loadComponent(containerId, componentPath) {
-    try {
-        console.log(`Attempting to load ${componentPath} into #${containerId}`);
-        const response = await fetch(componentPath);
-        
-        if (!response.ok) {
-            throw new Error(`Failed to load ${componentPath}: ${response.status} ${response.statusText}`);
-        }
-        
-        const data = await response.text();
-        console.log(`Loaded ${componentPath}, content length: ${data.length}`);
-        
-        const container = document.getElementById(containerId);
-        if (!container) {
-            throw new Error(`Container #${containerId} not found in the DOM`);
-        }
-        
-        container.innerHTML = data;
-        console.log(`Inserted ${componentPath} content into #${containerId}`);
-    } catch (error) {
-        console.error(`Error loading component ${componentPath}:`, error);
-        throw error;
-    }
-}
-
 // Expose showToast globally
 window.showToast = showToast;
