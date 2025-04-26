@@ -126,3 +126,21 @@ class Auth {
         return testFirestoreConnection();
     }
 }
+
+// Export the Auth class as both a named export and default export
+export { Auth };
+export default Auth;
+
+// For backward compatibility, expose Auth globally
+window.Auth = Auth;
+
+// Export individual services for advanced usage
+export { 
+    AuthService,
+    UserService,
+    ExamService,
+    EnhancedSignupService,
+    Validator,
+    ErrorHandler,
+    TokenManager
+};
