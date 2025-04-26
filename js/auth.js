@@ -899,5 +899,9 @@ class AuthService {
         }
     }
 
-// Expose to global scope
+// Add this at the END of your auth.js file
+export { AuthService };  // Export the entire class
+export default AuthService;  // Optional: default export
+
+// Optional: Expose static methods globally if needed
 window.Auth = AuthService;
