@@ -18,8 +18,12 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Modal.init is not a function');
         }
 
-        if (typeof Auth.init === 'function') {
-            Auth.init();
+        // Initialize the enhanced auth service
+        if (typeof Auth.initExtended === 'function') {
+            Auth.initExtended(); // Use the enhanced version with additional user data collection
+        } else if (typeof Auth.init === 'function') {
+            Auth.init(); // Fallback to standard initialization
+            console.warn('Enhanced auth features not available');
         } else {
             console.error('Auth.init is not a function');
         }
