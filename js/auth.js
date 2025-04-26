@@ -180,21 +180,27 @@ class AuthService {
     }
     
     // Enhanced initialization with extended features
-    static async initExtended() {
-        console.log('Initializing Enhanced Authentication Service');
-        // Call the original init method first
-        await this.init();
-        
-        // Set up dynamic exam field handlers
-        this.setupDynamicExamFields();
-        
-        // Override the signup form submission if needed
-        const signupForm = document.querySelector('#signupForm form') || document.getElementById('signupForm');
-        if (signupForm) {
-            signupForm.removeEventListener('submit', this.handleSignup);
-            signupForm.addEventListener('submit', (e) => this.handleEnhancedSignup(e));
-        }
+static async initExtended() {
+    console.log('Initializing Enhanced Authentication Service');
+    // Call the original init method first
+    await this.init();
+    
+    // Set up dynamic exam field handlers
+    this.setupDynamicExamFields();
+    
+    // Override the signup form submission if needed
+    const signupForm = document.querySelector('#signupForm form') || document.getElementById('signupForm');
+    if (signupForm) {
+        signupForm.removeEventListener('submit', this.handleSignup);
+        signupForm.addEventListener('submit', (e) => this.handleEnhancedSignup(e));
     }
+    
+    // Add event listener for exam data form if it exists
+    const examDataForm = document.getElementById('exam-data-form');
+    if (examDataForm) {
+        examDataForm.addEventListener('submit', (e) => this.handleExamDataForm(e));
+    }
+}
 
     // Check for existing session
     static async checkExistingSession() {
@@ -431,47 +437,48 @@ class AuthService {
         }
     }
     
-    // Set up dynamic exam fields
-    static setupDynamicExamFields() {
-        const examCheckboxes = document.querySelectorAll('.exam-checkbox');
-        const dynamicRankFields = document.getElementById('dynamicRankFields');
-        
-        if (!examCheckboxes || !dynamicRankFields) return;
-        
-        const examRankFields = {
-            hasJeeMain: {
-                id: 'jeeMainRank',
-                label: 'JEE Main Rank',
-                placeholder: 'Enter your JEE Main rank'
-            },
-            hasJeeAdvanced: {
-                id: 'jeeAdvancedRank',
-                label: 'JEE Advanced Rank',
-                placeholder: 'Enter your JEE Advanced rank'
-            },
-            hasMhtcet: {
-                id: 'mhtcetRank',
-                label: 'MHT-CET Rank',
-                placeholder: 'Enter your MHT-CET rank'
-            },
-            hasNeet: {
-                id: 'neetRank',
-                label: 'NEET-UG Rank',
-                placeholder: 'Enter your NEET-UG rank'
-            }
-        };
-        
-        // Initial render based on defaults
-        this.renderDynamicFields(examCheckboxes, dynamicRankFields, examRankFields);
-        
-        // Update fields on checkbox changes
-        examCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', () => {
-                this.renderDynamicFields(examCheckboxes, dynamicRankFields, examRankFields);
-            });
+static setupDynamicExamFields() {
+    const examCheckboxes = document.querySelectorAll('.exam-checkbox');
+    const dynamicRankFields = document.getElementById('dynamicRankFields');
+    
+    if (!examCheckboxes || !dynamicRankFields) return;
+    
+    const examRankFields = {
+        hasJeeMain: {
+            id: 'jeeMainRank',
+            label: 'JEE Main Rank',
+            placeholder: 'Enter your JEE Main rank'
+        },
+        hasJeeAdvanced: {
+            id: 'jeeAdvancedRank',
+            label: 'JEE Advanced Rank',
+            placeholder: 'Enter your JEE Advanced rank'
+        },
+        hasMhtcet: {
+            id: 'mhtcetRank',
+            label: 'MHT-CET Rank',
+            placeholder: 'Enter your MHT-CET rank'
+        },
+        hasNeet: {
+            id: 'neetRank',
+            label: 'NEET-UG Rank',
+            placeholder: 'Enter your NEET-UG rank'
+        }
+    };
+    
+    // Initial render based on defaults
+    this.renderDynamicFields(examCheckboxes, dynamicRankFields, examRankFields);
+    
+    // Update fields on checkbox changes
+    examCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            this.renderDynamicFields(examCheckboxes, dynamicRankFields, examRankFields);
         });
-        this.populateExamFields();
-    }
+    });
+    
+    // Add this line to populate fields with existing data
+    this.populateExamFields();
+}
     
     // Render dynamic rank fields based on selected exams
     static renderDynamicFields(checkboxes, container, fieldConfigs) {
@@ -769,7 +776,7 @@ static async handleEnhancedSignup(event) {
     }
 }
 
-    static async handleExamDataForm(event) {
+static async handleExamDataForm(event) {
     event.preventDefault();
     
     const examCheckboxes = document.querySelectorAll('.exam-checkbox:checked');
@@ -812,6 +819,7 @@ static async handleEnhancedSignup(event) {
             if (rankInput && rankInput.value.trim()) {
                 examData[examType] = {
                     rank: parseInt(rankInput.value.trim()),
+                    verified: false,
                     dateUpdated: new Date().toISOString()
                 };
             }
