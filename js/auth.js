@@ -154,7 +154,7 @@ class AuthService {
             console.error('Auth Error:', errorMessage);
         },
 
-        async handleAuthError(error) {
+        handleAuthError: async (error) => {
             console.error('Auth error:', error);
 
             if (error.code === 'auth/id-token-expired') {
