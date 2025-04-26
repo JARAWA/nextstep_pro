@@ -898,7 +898,7 @@ class AuthService {
             navContainer.appendChild(adminLink);
         }
     }
-
+}
 // Add this at the END of your auth.js file
 export { AuthService };  // Export the entire class
 export default AuthService;  // Optional: default export
