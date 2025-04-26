@@ -172,27 +172,47 @@ class AuthService {
     };
 
     // Initialize Authentication Service
-    static async init() {
-        console.log('Initializing Authentication Service');
+// Modify the init method to ensure proper initialization
+static async init() {
+    console.log('Initializing Authentication Service');
+    
+    try {
+        // Test Firestore connection during initialization
+        const firestoreConnected = await this.debugFirestoreConnection();
+        if (!firestoreConnected) {
+            console.warn("Firestore connection issues detected during initialization");
+        }
+        
         this.setupAuthStateListener();
         this.setupAuthButtons();
         await this.checkExistingSession();
+        
+        console.log('Authentication Service initialized successfully');
+    } catch (error) {
+        console.error('Error during Authentication Service initialization:', error);
     }
+}
     
     // Enhanced initialization with extended features
 static async initExtended() {
     console.log('Initializing Enhanced Authentication Service');
     // Call the original init method first
-    await this.init();
+    this.init();
     
     // Set up dynamic exam field handlers
     this.setupDynamicExamFields();
     
-    // Override the signup form submission if needed
+    // IMPROVED: Completely replace form submission handler instead of adding another one
     const signupForm = document.querySelector('#signupForm form') || document.getElementById('signupForm');
     if (signupForm) {
-        signupForm.removeEventListener('submit', this.handleSignup);
-        signupForm.addEventListener('submit', (e) => this.handleEnhancedSignup(e));
+        // Remove all existing listeners by cloning and replacing the element
+        const newForm = signupForm.cloneNode(true);
+        signupForm.parentNode.replaceChild(newForm, signupForm);
+        
+        // Add our single event listener
+        newForm.addEventListener('submit', (e) => this.handleEnhancedSignup(e));
+        
+        console.log('Enhanced signup handler attached');
     }
     
     // Add event listener for exam data form if it exists
@@ -590,6 +610,7 @@ static async handleEnhancedSignup(event) {
     const mobileInput = document.getElementById('mobileNumber');
     const submitButton = event.target.querySelector('button[type="submit"]');
 
+    // Form validation
     const validationInputs = [
         {
             element: nameInput,
@@ -624,7 +645,7 @@ static async handleEnhancedSignup(event) {
         return;
     }
 
-    // Validate exam checkbox selections and their corresponding rank inputs
+    // Validate exam checkbox selections
     const examCheckboxes = document.querySelectorAll('.exam-checkbox:checked');
     const examRankValidations = Array.from(examCheckboxes).map(checkbox => {
         const examType = checkbox.id.replace('has', '');
@@ -648,26 +669,40 @@ static async handleEnhancedSignup(event) {
         return;
     }
 
+    let userCredential = null;
+
     try {
         submitButton.disabled = true;
         submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
 
-        // Create user with Firebase Auth
-        const userCredential = await createUserWithEmailAndPassword(
-            auth, 
-            emailInput.value.trim(), 
-            passwordInput.value
-        );
+        // Step 1: Create Firebase Auth user
+        try {
+            userCredential = await createUserWithEmailAndPassword(
+                auth, 
+                emailInput.value.trim(), 
+                passwordInput.value
+            );
+            
+            console.log("Firebase Auth user created with UID:", userCredential.user.uid);
+        } catch (authError) {
+            // Handle authentication errors
+            const errorMessage = this.ErrorHandler.mapAuthError(authError);
+            this.ErrorHandler.displayError('signupPasswordError', errorMessage);
+            throw new Error(`Auth creation failed: ${errorMessage}`);
+        }
 
-        // Update profile with display name
-        await updateProfile(userCredential.user, {
-            displayName: nameInput.value.trim()
-        });
+        // Step 2: Update user profile and send verification email
+        try {
+            await updateProfile(userCredential.user, {
+                displayName: nameInput.value.trim()
+            });
+            await sendEmailVerification(userCredential.user);
+        } catch (profileError) {
+            console.error("Error updating profile:", profileError);
+            // Continue despite profile update errors - not critical
+        }
 
-        // Send verification email
-        await sendEmailVerification(userCredential.user);
-
-        // Collect exam data from selected exams and their rank fields
+        // Step 3: Collect exam data
         const examData = {};
         examCheckboxes.forEach(checkbox => {
             const examType = checkbox.id.replace('has', '');
@@ -682,43 +717,81 @@ static async handleEnhancedSignup(event) {
             }
         });
 
-        // Now create user profile document in Firestore
+        // Step 4: Create Firestore user document
         try {
-            // Create user profile with required fields and exam data
-            await setDoc(doc(db, "users", userCredential.user.uid), {
+            const userData = {
                 name: nameInput.value.trim(),
                 email: emailInput.value.trim(),
                 mobileNumber: mobileInput.value.trim(),
-                userRole: "student", // Default role for new users
-                examData: examData, // Store the collected exam data
+                userRole: "student",
+                examData: examData,
                 createdAt: new Date().toISOString(),
                 lastUpdated: new Date().toISOString()
-            });
-            
-            console.log("User profile data loaded:", {
-                name: nameInput.value.trim(),
-                email: emailInput.value.trim(),
-                mobileNumber: mobileInput.value.trim(),
-                examData: examData,
-                createdAt: new Date().toISOString()
-            });
-        } catch (firestoreError) {
-            console.error("Signup error:", firestoreError);
-            this.ErrorHandler.displayError('signupError', 'Account created but failed to save profile data.');
-        }
+            };
 
+            // IMPORTANT: Add retry logic with increasing delays
+        let retryCount = 0;
+        const maxRetries = 3;
+        let success = false;
+        
+        while (!success && retryCount < maxRetries) {
+            try {
+                console.log(`Attempt ${retryCount + 1} to store user data for UID: ${userCredential.user.uid}`);
+                
+                // Wait longer between each retry (exponential backoff)
+                if (retryCount > 0) {
+                    const delayMs = 1000 * Math.pow(2, retryCount - 1); // 1s, 2s, 4s...
+                    console.log(`Waiting ${delayMs}ms before retry...`);
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                }
+                
+            console.log("Attempting to store user data for UID:", userCredential.user.uid);
+            
+            // IMPORTANT: Use a direct document reference with proper path
+            const userDocRef = doc(db, "users", userCredential.user.uid);
+            await setDoc(userDocRef, userData);
+            
+            console.log("User profile data stored successfully");
+        } catch (firestoreError) {
+            console.error(`Firestore error on attempt ${retryCount + 1}:`, firestoreError);
+                retryCount++;
+                
+                // On the last attempt, notify the user
+                if (retryCount >= maxRetries) {
+                    console.error("All attempts to store user data failed");
+                    if (window.showToast) {
+                        window.showToast('Account created but profile data storage failed. Some features may be limited.', 'warning');
+                    }
+                }
+            }
+
+        // Success notifications
         if (window.showToast) {
             window.showToast('Account created! Please verify your email.', 'success');
         }
 
+        // Reset the form and hide modal
         event.target.reset();
-
         if (window.Modal && typeof window.Modal.hide === 'function') {
             window.Modal.hide();
         }
 
     } catch (error) {
-        const errorMessage = this.ErrorHandler.mapAuthError(error);
+        console.error("Signup process error:", error);
+        
+        // If we created a user but failed later steps, we might want to clean up
+        // This is optional and depends on your requirements
+        if (userCredential && userCredential.user) {
+            try {
+                console.log("Cleaning up failed signup - deleting user");
+                await userCredential.user.delete();
+            } catch (deleteError) {
+                console.error("Failed to clean up user after error:", deleteError);
+            }
+        }
+        
+        // Display error to user
+        const errorMessage = error.message || "Failed to create account. Please try again.";
         this.ErrorHandler.displayError('signupPasswordError', errorMessage);
     } finally {
         submitButton.disabled = false;
@@ -884,6 +957,34 @@ static async handleExamDataForm(event) {
     }
 }
 
+// Third fix - Add a debug method to help troubleshoot Firestore connectivity
+static async debugFirestoreConnection() {
+    try {
+        console.log("Testing Firestore connection...");
+        
+        // Test if we can write to a test collection
+        const testDocRef = doc(db, "system_test", "connection_test");
+        await setDoc(testDocRef, {
+            timestamp: new Date().toISOString(),
+            test: "Connection test"
+        });
+        
+        console.log("Firestore write test successful");
+        
+        // Test if we can read from the test collection
+        const docSnap = await getDoc(testDocRef);
+        if (docSnap.exists()) {
+            console.log("Firestore read test successful:", docSnap.data());
+            return true;
+        } else {
+            console.error("Firestore read test failed: Document not found");
+            return false;
+        }
+    } catch (error) {
+        console.error("Firestore connection test failed:", error);
+        return false;
+    }
+}
     
     static async handleLogin(event) {
         event.preventDefault();
