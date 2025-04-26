@@ -898,3 +898,6 @@ class AuthService {
             navContainer.appendChild(adminLink);
         }
     }
+
+// Expose to global scope
+window.Auth = AuthService;
