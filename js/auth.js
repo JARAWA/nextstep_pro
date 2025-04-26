@@ -764,6 +764,7 @@ static async handleEnhancedSignup(event) {
                     }
                 }
             }
+        }
 
         // Success notifications
         if (window.showToast) {
@@ -775,6 +776,7 @@ static async handleEnhancedSignup(event) {
         if (window.Modal && typeof window.Modal.hide === 'function') {
             window.Modal.hide();
         }
+        
 
     } catch (error) {
         console.error("Signup process error:", error);
