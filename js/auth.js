@@ -39,8 +39,8 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app); // Ensure Firestore is initialized
 const googleProvider = new GoogleAuthProvider();
+const db = getFirestore(app);
 
 class AuthService {
     // Class properties
@@ -131,12 +131,7 @@ class AuthService {
                 'auth/operation-not-allowed': 'This login method is not enabled',
                 'auth/account-exists-with-different-credential': 'An account already exists with this email',
                 'auth/requires-recent-login': 'Please log in again to continue',
-                'auth/id-token-expired': 'Session expired. Please log in again',
-                // Add these Firestore error codes
-                'permission-denied': 'Missing or insufficient permissions',
-                'resource-exhausted': 'Database operation limit exceeded, please try again later',
-                'unauthenticated': 'Authentication required',
-                'unavailable': 'Service is currently unavailable, please try again later'
+                'auth/id-token-expired': 'Session expired. Please log in again'
             };
 
             return errorMap[error.code] || error.message || 'An unexpected error occurred';
@@ -571,105 +566,87 @@ class AuthService {
         return true;
     }
     
-    // Replace with the new enhanced signup method
+    // Handle enhanced signup with user data collection
     static async handleEnhancedSignup(event) {
         event.preventDefault();
-
-        const nameInput = document.getElementById('signupName');
-        const emailInput = document.getElementById('signupEmail');
-        const passwordInput = document.getElementById('signupPassword');
-        const confirmPasswordInput = document.getElementById('confirmPassword');
-        const mobileInput = document.getElementById('signupMobile') || { value: '' }; // Optional field
+        
+        if (!this.validateEnhancedForm()) return;
+        
         const submitButton = event.target.querySelector('button[type="submit"]');
+    if (submitButton) {  // Check if button exists before using it
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
+    }
 
-        const validationInputs = [
-            {
-                element: nameInput,
-                value: nameInput.value.trim(),
-                validator: this.Validator.name,
-                errorField: 'signupNameError'
-            },
-            {
-                element: emailInput,
-                value: emailInput.value.trim(),
-                validator: this.Validator.email,
-                errorField: 'signupEmailError'
-            },
-            {
-                element: passwordInput,
-                value: passwordInput.value,
-                validator: this.Validator.password,
-                errorField: 'signupPasswordError'
-            }
-        ];
-
-        if (!this.validateForm(validationInputs)) return;
-
-        if (passwordInput.value !== confirmPasswordInput.value) {
-            this.ErrorHandler.displayError('confirmPasswordError', 'Passwords do not match');
-            return;
-        }
-
+        
         try {
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
-
-            // Create user with Firebase Auth
+            // Extract form data
+            const userData = {
+                name: document.getElementById('signupName').value.trim(),
+                email: document.getElementById('signupEmail').value.trim(),
+                mobileNumber: document.getElementById('mobileNumber').value.trim(),
+                examData: {},
+                createdAt: new Date().toISOString(),
+                userRole: 'student',
+                isActive: true
+            };
+            
+            // Get exam data
+            const examCheckboxes = document.querySelectorAll('.exam-checkbox');
+            examCheckboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    const examKey = checkbox.id.replace('has', '');
+                    const rankFieldId = examKey + 'Rank';
+                    const rankInput = document.getElementById(rankFieldId);
+                    
+                    if (rankInput) {
+                        userData.examData[examKey] = {
+                            rank: parseInt(rankInput.value.trim()),
+                            verified: false
+                        };
+                    }
+                }
+            });
+            
+            // Create Firebase user
             const userCredential = await createUserWithEmailAndPassword(
                 auth, 
-                emailInput.value.trim(), 
-                passwordInput.value
+                userData.email, 
+                document.getElementById('signupPassword').value
             );
-
-            // Update profile with display name
+            
+            // Update profile
             await updateProfile(userCredential.user, {
-                displayName: nameInput.value.trim()
+                displayName: userData.name
             });
-
+            
+            // Save user data to Firestore
+            userData.uid = userCredential.user.uid;
+            await setDoc(doc(db, "users", userCredential.user.uid), userData);
+            
             // Send verification email
             await sendEmailVerification(userCredential.user);
-
-            // Now create user profile document in Firestore
-            try {
-                // Create user profile with required fields
-                await setDoc(doc(db, "users", userCredential.user.uid), {
-                    name: nameInput.value.trim(),
-                    email: emailInput.value.trim(),
-                    mobileNumber: mobileInput.value.trim(),
-                    userRole: "student", // Default role for new users
-                    examData: {}, // Empty object for future exam data
-                    createdAt: new Date().toISOString(),
-                    lastUpdated: new Date().toISOString()
-                });
-                
-                console.log("User profile data loaded:", {
-                    name: nameInput.value.trim(),
-                    email: emailInput.value.trim(),
-                    mobileNumber: mobileInput.value.trim(),
-                    examData: {},
-                    createdAt: new Date().toISOString()
-                });
-            } catch (firestoreError) {
-                console.error("Signup error:", firestoreError);
-                this.ErrorHandler.displayError('signupError', 'Account created but failed to save profile data.');
-            }
-
+            
             if (window.showToast) {
                 window.showToast('Account created! Please verify your email.', 'success');
             }
-
+            
             event.target.reset();
-
+            
             if (window.Modal && typeof window.Modal.hide === 'function') {
                 window.Modal.hide();
             }
-
+            
         } catch (error) {
+            console.error("Signup error:", error);
             const errorMessage = this.ErrorHandler.mapAuthError(error);
             this.ErrorHandler.displayError('signupPasswordError', errorMessage);
         } finally {
+        if (submitButton) {  // Check again before re-enabling
             submitButton.disabled = false;
             submitButton.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
+        }
+
         }
     }
 
@@ -860,7 +837,7 @@ class AuthService {
         return true;
     }
     
-    // Replace the fetchUserProfile method
+    // Override the fetchUserProfile method to get additional user data
     static async fetchUserProfile() {
         if (!this.user) return null;
         
@@ -868,18 +845,56 @@ class AuthService {
             const userDoc = await getDoc(doc(db, "users", this.user.uid));
             
             if (userDoc.exists()) {
-                const userData = userDoc.data();
-                console.log("User profile data loaded:", userData);
-                return userData;
+                this.userData = userDoc.data();
+                console.log('User profile data loaded:', this.userData);
+                
+                // Check if user is admin and update UI accordingly
+                if (this.userData.userRole === 'admin') {
+                    this.enableAdminFeatures();
+                }
             } else {
-                console.log("No user profile found");
-                // This is a placeholder for any additional user profile fetching logic
-                console.log('User profile fetched for:', this.user.email);
-                return null;
+                console.log('No additional user data found');
+                
+                // Create basic user record if not exists
+                const basicData = {
+                    uid: this.user.uid,
+                    name: this.user.displayName || '',
+                    email: this.user.email,
+                    createdAt: new Date().toISOString(),
+                    userRole: 'student',
+                    isActive: true
+                };
+                
+                await setDoc(doc(db, "users", this.user.uid), basicData);
+                this.userData = basicData;
             }
+            
+            return this.userData;
         } catch (error) {
-            console.error("Error fetching user profile:", error);
+            console.error('Error fetching user profile:', error);
             return null;
         }
     }
+    
+    // Enable admin-specific features in the UI
+    static enableAdminFeatures() {
+        // Add admin panel link to navigation
+        const navContainer = document.querySelector('.nav-links');
+        if (navContainer && !document.getElementById('admin-link')) {
+            const adminLink = document.createElement('li');
+            adminLink.id = 'admin-link';
+            adminLink.innerHTML = `
+                <a href="admin/dashboard.html" class="admin-link">
+                    <i class="fas fa-user-shield"></i> Admin Panel
+                </a>
+            `;
+            navContainer.appendChild(adminLink);
+        }
+    }
 }
+
+// Expose to global scope
+window.Auth = AuthService;
+
+// Export for module usage
+export default AuthService;
