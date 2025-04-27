@@ -12,9 +12,9 @@ import {
     getDocs
 } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
-import { db } from './firebase-config.js';
-import { ErrorHandler } from '../utils/error-handler.js';
-import { TokenManager } from '../services/token-manager.js';
+import { db } from './js/auth/services/firebase-config.js';
+import { ErrorHandler } from './js/auth/utils/error-handler.js';
+import { TokenManager } from './js/auth/services/token-manager.js';
 
 class UserService {
     static userData = null;
