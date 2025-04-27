@@ -45,62 +45,102 @@ class AuthService {
         const storedToken = TokenManager.getStoredToken();
         if (storedToken) {
             console.log("Found valid stored token");
+            // Validate the token immediately
+            try {
+                if (TokenManager.validateToken(storedToken)) {
+                    console.log("Stored token is valid");
+                } else {
+                    console.warn("Stored token is invalid or expired");
+                    TokenManager.clearTokenData();
+                }
+            } catch (error) {
+                console.error("Error validating stored token:", error);
+                TokenManager.clearTokenData();
+            }
         }
     }
     
- static setupAuthStateListener() {
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            this.user = user;
-            this.isLoggedIn = true;
-            
-            try {
-                // Get token first and make sure it's valid
-                const token = await TokenManager.getFirebaseToken(user);
-                if (token) {
-                    localStorage.setItem('authToken', token);
-                    TokenManager.setupTokenRefresh(user);
+    static setupAuthStateListener() {
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                this.user = user;
+                this.isLoggedIn = true;
+                
+                try {
+                    // Get token first and make sure it's valid
+                    console.log("Getting Firebase token for user:", user.uid);
+                    const token = await TokenManager.getFirebaseToken(user);
                     
-                    // Add a small delay to ensure the token is fully processed
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    
-                    // Now try to fetch the profile
-                    try {
-                        await UserService.fetchUserProfile(user);
-                    } catch (profileError) {
-                        console.warn('Failed to fetch user profile, but continuing with authentication:', profileError);
+                    if (token) {
+                        console.log("Received valid token from Firebase");
+                        localStorage.setItem('authToken', token);
+                        TokenManager.setupTokenRefresh(user);
+                        
+                        // Add a longer delay to ensure the token is fully processed
+                        // Firebase sometimes needs additional time to propagate auth state
+                        console.log("Waiting for auth state to fully propagate...");
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        // Now try to fetch the profile
+                        try {
+                            console.log("Token valid before profile fetch:", !!TokenManager.getCurrentToken());
+                            const userData = await UserService.fetchUserProfile(user);
+                            
+                            if (userData) {
+                                console.log("User profile fetched successfully:", userData);
+                                if (userData.userRole) {
+                                    this.userRole = userData.userRole;
+                                    console.log("User role set to:", this.userRole);
+                                }
+                            } else {
+                                console.warn("No user profile data was returned");
+                            }
+                        } catch (profileError) {
+                            console.warn('Failed to fetch user profile, attempting retry with fresh token', profileError);
+                            
+                            // Try one more time with a fresh token
+                            try {
+                                const freshToken = await user.getIdToken(true); // Force token refresh
+                                localStorage.setItem('authToken', freshToken);
+                                console.log("Retrying profile fetch with fresh token");
+                                
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                                await UserService.fetchUserProfile(user);
+                            } catch (retryError) {
+                                console.error("Profile fetch retry failed:", retryError);
+                            }
+                        }
+                        
+                        this.updateUI();
+                        this.enableLoginRequiredFeatures();
+                        
+                        if (window.Modal && typeof window.Modal.hide === 'function') {
+                            window.Modal.hide();
+                        }
+                        
+                        if (window.showToast) {
+                            window.showToast(`Welcome back, ${user.displayName || user.email}!`, 'success');
+                        }
+                    } else {
+                        console.error('Failed to obtain valid token');
                     }
-                    
-                    this.updateUI();
-                    this.enableLoginRequiredFeatures();
-                    
-                    if (window.Modal && typeof window.Modal.hide === 'function') {
-                        window.Modal.hide();
-                    }
-                    
-                    if (window.showToast) {
-                        window.showToast(`Welcome back, ${user.displayName || user.email}!`, 'success');
-                    }
-                } else {
-                    console.error('Failed to obtain valid token');
+                } catch (error) {
+                    console.error('Auth state update error:', error);
+                    ErrorHandler.handleAuthError(error, 
+                        () => TokenManager.refreshToken(this.user), 
+                        () => this.logout()
+                    );
                 }
-            } catch (error) {
-                console.error('Auth state update error:', error);
-                ErrorHandler.handleAuthError(error, 
-                    () => TokenManager.refreshToken(this.user), 
-                    () => this.logout()
-                );
+            } else {
+                this.user = null;
+                this.isLoggedIn = false;
+                TokenManager.clearTokenData();
+                
+                this.updateUI();
+                this.disableLoginRequiredFeatures();
             }
-        } else {
-            this.user = null;
-            this.isLoggedIn = false;
-            TokenManager.clearTokenData();
-            
-            this.updateUI();
-            this.disableLoginRequiredFeatures();
-        }
-    });
-}
+        });
+    }
     
     // Secure Redirect Handling
     static async handleSecureRedirect(targetUrl) {
@@ -293,6 +333,7 @@ class AuthService {
             // Get and store authentication token
             const token = await TokenManager.getFirebaseToken(userCredential.user);
             localStorage.setItem('authToken', token);
+            console.log("Login successful, token stored");
 
             // Close modal if successful
             if (window.Modal && typeof window.Modal.hide === 'function') {
