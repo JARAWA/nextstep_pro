@@ -18,11 +18,15 @@ class UserDropdown {
      * Initialize the dropdown functionality
      */
     init() {
+        this.container = document.getElementById('user-info'); // Re-get the container in case DOM has updated
+        
         if (!this.container) {
             console.error('User info container not found');
             return;
         }
 
+        console.log('User dropdown initialized successfully');
+        
         // Listen for authentication state changes
         this.setupAuthListener();
         
@@ -95,7 +99,9 @@ class UserDropdown {
     handleUserLogout() {
         this.currentUser = null;
         this.userRole = 'student';
-        this.container.innerHTML = '';
+        if (this.container) {
+            this.container.innerHTML = '';
+        }
     }
 
     /**
@@ -232,10 +238,4 @@ class UserDropdown {
 const userDropdown = new UserDropdown();
 export default userDropdown;
 
-// Initialize on DOM content loaded
-document.addEventListener('DOMContentLoaded', () => {
-    // Delay initialization to ensure auth is loaded
-    setTimeout(() => {
-        userDropdown.init();
-    }, 100);
-});
+// Remove self-initialization - will be handled by main.js
