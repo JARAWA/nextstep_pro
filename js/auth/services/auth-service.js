@@ -47,46 +47,49 @@ class AuthService {
     }
     
     // Authentication State Management
-    static setupAuthStateListener() {
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                this.user = user;
-                this.isLoggedIn = true;
-                
-                try {
-                    const token = await TokenManager.getFirebaseToken(user);
-                    if (token) {
-                        localStorage.setItem('authToken', token);
-                        // Set up token refresh interval
-                        TokenManager.setupTokenRefresh(user);
-                    }
-                    
-                    // Fetch the user profile from Firestore if needed
-                    await UserService.fetchUserProfile(user);
-                    
-                    this.updateUI();
-                    this.enableLoginRequiredFeatures();
-                    
-                    if (window.showToast) {
-                        window.showToast(`Welcome back, ${user.displayName || user.email}!`, 'success');
-                    }
-                } catch (error) {
-                    console.error('Auth state update error:', error);
-                    ErrorHandler.handleAuthError(error, 
-                        () => TokenManager.refreshToken(this.user), 
-                        () => this.logout()
-                    );
+static setupAuthStateListener() {
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            this.user = user;
+            this.isLoggedIn = true;
+            
+            try {
+                const token = await TokenManager.getFirebaseToken(user);
+                if (token) {
+                    localStorage.setItem('authToken', token);
+                    // Set up token refresh interval
+                    TokenManager.setupTokenRefresh(user);
                 }
-            } else {
-                this.user = null;
-                this.isLoggedIn = false;
-                TokenManager.clearTokenData();
+                
+                // Fetch the user profile from Firestore if needed
+                await UserService.fetchUserProfile(user);
+                
+                // Check if there's pending profile data to sync
+                await UserService.syncPendingProfile(user);
                 
                 this.updateUI();
-                this.disableLoginRequiredFeatures();
+                this.enableLoginRequiredFeatures();
+                
+                if (window.showToast) {
+                    window.showToast(`Welcome back, ${user.displayName || user.email}!`, 'success');
+                }
+            } catch (error) {
+                console.error('Auth state update error:', error);
+                ErrorHandler.handleAuthError(error, 
+                    () => TokenManager.refreshToken(this.user), 
+                    () => this.logout()
+                );
             }
-        });
-    }
+        } else {
+            this.user = null;
+            this.isLoggedIn = false;
+            TokenManager.clearTokenData();
+            
+            this.updateUI();
+            this.disableLoginRequiredFeatures();
+        }
+    });
+}
     
     // Secure Redirect Handling
     static async handleSecureRedirect(targetUrl) {
