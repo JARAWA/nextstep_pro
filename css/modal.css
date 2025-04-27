@@ -273,3 +273,157 @@
         margin-bottom: 1em;
     }
 }
+
+/* Two-Step Signup Modal Styles */
+
+/* Steps container */
+.signup-step {
+  display: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.signup-step.active {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Step indicator */
+.step-indicator {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.step-indicator:before {
+  content: '';
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #4285f4;
+  color: white;
+  text-align: center;
+  line-height: 24px;
+  margin-right: 10px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Button row */
+.buttons-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.buttons-row button {
+  flex: 1;
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: #4285f4;
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: #3367d6;
+}
+
+.btn-secondary {
+  background-color: #f1f3f4;
+  color: #202124;
+  border: 1px solid #dadce0;
+}
+
+.btn-secondary:hover {
+  background-color: #e8eaed;
+}
+
+/* Form groups */
+.form-group {
+  margin-bottom: 20px;
+}
+
+/* Exam selection section */
+.exam-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Dynamic rank fields */
+#dynamicRankFields {
+  transition: all 0.3s ease;
+}
+
+.rank-field {
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.rank-field.active {
+  max-height: 100px;
+  opacity: 1;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+/* Error messages */
+.error-message {
+  color: #d93025;
+  font-size: 0.8rem;
+  margin-top: 5px;
+  display: none;
+}
+
+.error-message.show {
+  display: block;
+}
+
+/* Terms and conditions */
+.terms-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.terms-checkbox input {
+  margin-top: 3px;
+}
+
+/* Loading spinner */
+.fa-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
