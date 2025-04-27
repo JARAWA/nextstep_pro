@@ -14,7 +14,7 @@ import {
 
 import { db } from './firebase-config.js';
 import { ErrorHandler } from '../utils/error-handler.js';
-import { TokenManager } from '../utils/token-manager.js';
+import { TokenManager } from '../services/token-manager.js';
 
 class UserService {
     static userData = null;
