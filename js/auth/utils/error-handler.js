@@ -11,7 +11,7 @@ function mapAuthError(error) {
         'auth/weak-password': 'Password is too weak',
         'auth/user-not-found': 'No account found with this email',
         'auth/wrong-password': 'Incorrect password',
-        'auth/too-many-requests': 'Too many login attempts. Please try again later.',
+        'auth/too-many-requests': 'Too many login attempts. Your account is temporarily locked for security reasons.',
         'auth/popup-closed-by-user': 'Login popup was closed',
         'auth/cancelled-popup-request': 'Login popup was cancelled',
         'auth/network-request-failed': 'Network error. Please check your connection.',
@@ -61,6 +61,17 @@ function displayError(errorField, errorMessage) {
 
     // Always log to console for debugging
     console.error('Auth Error:', errorMessage);
+    
+    // Check if it's a rate limit error and offer password reset
+    const isRateLimitError = 
+        (typeof errorMessage === 'string' && 
+         (errorMessage.includes('too many login attempts') || 
+          errorMessage.includes('temporarily locked'))) ||
+        (error && error.code === 'auth/too-many-requests');
+    
+    if (isRateLimitError) {
+        offerPasswordReset();
+    }
 }
 
 // Handle auth errors and token refreshing
@@ -83,6 +94,95 @@ async function handleAuthError(error, refreshTokenFn, logoutFn) {
     }
 
     return null;
+}
+
+// Offers password reset option when account is rate limited
+function offerPasswordReset() {
+    // Find the login form
+    const loginForm = document.querySelector('.login-form');
+    
+    if (!loginForm) return;
+    
+    // Check if reset notice already exists
+    if (document.getElementById('rate-limit-notice')) return;
+    
+    // Create reset notice element
+    const resetNotice = document.createElement('div');
+    resetNotice.id = 'rate-limit-notice';
+    resetNotice.className = 'rate-limit-notice';
+    resetNotice.innerHTML = `
+        <p>Your account is temporarily locked due to too many login attempts.</p>
+        <button type="button" id="show-reset-btn" class="reset-password-btn">
+            <i class="fas fa-key"></i> Reset your password
+        </button>
+    `;
+    
+    // Insert after login form
+    loginForm.insertAdjacentElement('afterend', resetNotice);
+    
+    // Add event listener to the reset button
+    document.getElementById('show-reset-btn').addEventListener('click', function() {
+        // Show password reset form
+        if (window.Modal && typeof window.Modal.showForgotPassword === 'function') {
+            window.Modal.showForgotPassword();
+        } else if (window.Auth && typeof window.Auth.handleForgotPassword === 'function') {
+            window.Auth.handleForgotPassword();
+        } else {
+            // Fallback - show toast with instruction
+            if (window.showToast) {
+                window.showToast('Please use the "Forgot Password" option to reset your password.', 'info');
+            }
+        }
+    });
+    
+    // Add necessary styles if not already in your CSS
+    addRateLimitStyles();
+}
+
+// Add CSS styles for rate limit notice
+function addRateLimitStyles() {
+    // Check if styles already exist
+    if (document.getElementById('rate-limit-styles')) return;
+    
+    const styleElement = document.createElement('style');
+    styleElement.id = 'rate-limit-styles';
+    styleElement.textContent = `
+        .rate-limit-notice {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: rgba(0, 107, 107, 0.05);
+            border-left: 3px solid var(--primary-color, #006B6B);
+            border-radius: 4px;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .rate-limit-notice p {
+            margin-bottom: 10px;
+            color: #555;
+            font-size: 0.9rem;
+        }
+        
+        .reset-password-btn {
+            background: transparent;
+            color: var(--primary-color, #006B6B);
+            border: 1px solid var(--primary-color, #006B6B);
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .reset-password-btn:hover {
+            background-color: var(--primary-color, #006B6B);
+            color: white;
+        }
+    `;
+    
+    document.head.appendChild(styleElement);
 }
 
 // Retry mechanism for Firestore operations
@@ -122,7 +222,8 @@ export const ErrorHandler = {
     mapAuthError,
     displayError,
     handleAuthError,
-    retryOperation
+    retryOperation,
+    offerPasswordReset
 };
 
 export default ErrorHandler;
