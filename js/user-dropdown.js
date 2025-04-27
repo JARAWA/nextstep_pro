@@ -3,7 +3,7 @@
  * Creates and manages a dropdown menu in the user-info container
  * that shows username and role-based navigation options
  */
-import { AuthService, UserService } from './auth/services/auth-service.js';
+import { AuthService, UserService } from './auth/index.js';
 
 // Main class for user dropdown functionality
 class UserDropdown {
