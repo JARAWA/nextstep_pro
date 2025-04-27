@@ -37,6 +37,10 @@ class UserService {
         console.log("createUserProfile received profileData:", JSON.stringify(profileData));
   
         try {
+            // Ensure we have a fresh token before creating the profile
+            const token = await user.getIdToken(true);
+            console.log("Using fresh token for profile creation:", !!token);
+            
             // Use retry mechanism for Firestore operations
             const { success, error } = await ErrorHandler.retryOperation(async () => {
                 const userDocRef = doc(db, "users", user.uid);
@@ -162,6 +166,49 @@ class UserService {
     }
     
     /**
+     * Try to create a test document in system_test collection
+     * @param {Object} user - Firebase user object
+     * @returns {Promise<boolean>} Whether the operation succeeded
+     */
+    static async testFirestoreConnection(user) {
+        if (!user || !user.uid) {
+            console.error("Invalid user for connection test");
+            return false;
+        }
+        
+        try {
+            console.log("=== TESTING FIRESTORE CONNECTION ===");
+            
+            // Get a fresh token
+            const token = await user.getIdToken(true);
+            console.log("Test using fresh token:", !!token);
+            
+            // Try to write to system_test collection (which has less restrictive permissions)
+            const testDocRef = doc(db, "system_test", `test_${user.uid}_${Date.now()}`);
+            await setDoc(testDocRef, {
+                timestamp: new Date().toISOString(),
+                uid: user.uid,
+                test: "Connection test"
+            });
+            
+            console.log("Test write successful");
+            
+            // Try to read it back
+            const testDoc = await getDoc(testDocRef);
+            console.log("Test read successful:", testDoc.exists());
+            
+            console.log("=== FIRESTORE CONNECTION TEST PASSED ===");
+            return true;
+        } catch (error) {
+            console.error("=== FIRESTORE CONNECTION TEST FAILED ===");
+            console.error("Error:", error);
+            console.error("Error code:", error.code);
+            console.error("Error message:", error.message);
+            return false;
+        }
+    }
+    
+    /**
      * Fetch user profile from Firestore
      * @param {Object} user - Firebase user object
      * @returns {Promise<Object|null>} User profile data or null if not found
@@ -183,44 +230,51 @@ class UserService {
         try {
             console.log("Attempting to fetch profile for user:", user.uid);
             
-            // Ensure we have a valid token
-            const token = TokenManager.getCurrentToken();
-            console.log("Current auth token state:", !!token);
-            
-            if (!token) {
-                console.log("No token available, requesting new token");
-                try {
-                    // Force a token refresh
-                    const newToken = await user.getIdToken(true);
-                    if (newToken) {
-                        localStorage.setItem('authToken', newToken);
-                        console.log("New token obtained and stored");
-                    } else {
-                        throw new Error("Failed to obtain new token");
-                    }
-                } catch (tokenError) {
-                    console.error("Token refresh failed:", tokenError);
-                    
-                    // Check if we have pending profile data in localStorage
-                    const pendingData = this.getPendingProfileFromLocalStorage(user.uid);
-                    if (pendingData) {
-                        console.log("Using pending profile data from localStorage due to token error");
-                        this.userData = pendingData;
-                        this.fetchInProgress = false;
-                        return pendingData;
-                    }
-                    
-                    this.fetchInProgress = false;
-                    return null;
-                }
+            // First test the connection to isolate permission vs. connection issues
+            const connectionTest = await this.testFirestoreConnection(user);
+            if (!connectionTest) {
+                console.error("Firestore connection test failed, aborting profile fetch");
+                this.fetchInProgress = false;
+                return null;
             }
+            
+            // Always get a fresh token directly from user object
+            console.log("Getting fresh token for profile fetch");
+            const freshToken = await user.getIdToken(true);
+            if (freshToken) {
+                localStorage.setItem('authToken', freshToken);
+                console.log("Fresh token stored for profile fetch, length:", freshToken.length);
+            } else {
+                console.error("Failed to get fresh token for profile fetch");
+                this.fetchInProgress = false;
+                return null;
+            }
+            
+            // Add a delay to ensure token propagation
+            console.log("Waiting for token propagation...");
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
             const userDocRef = doc(db, "users", user.uid);
             console.log("Fetching document at path:", `users/${user.uid}`);
             
-            // Add a small delay to ensure token propagation
-            await new Promise(resolve => setTimeout(resolve, 300));
+            try {
+                // Try to create a basic profile first if it doesn't exist
+                // This can help bypass initial permission issues
+                await setDoc(userDocRef, {
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: user.displayName || user.email,
+                    createdAt: new Date().toISOString(),
+                    lastUpdated: new Date().toISOString(),
+                    userRole: 'user' // Default role
+                }, { merge: true });
+                console.log("Created/updated basic profile");
+            } catch (createError) {
+                console.warn("Could not create basic profile:", createError);
+                // Continue anyway to try reading
+            }
             
+            // Now try to read the profile
             const userDoc = await getDoc(userDocRef);
             
             console.log("Document fetch result:", userDoc.exists() ? "Document exists" : "Document doesn't exist");
@@ -332,6 +386,9 @@ class UserService {
         }
         
         try {
+            // Ensure we have a fresh token
+            await user.getIdToken(true);
+            
             const userDocRef = doc(db, "users", user.uid);
             
             // First check if the user profile exists
