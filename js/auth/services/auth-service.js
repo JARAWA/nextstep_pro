@@ -22,6 +22,8 @@ class AuthService {
     // Class properties
     static isLoggedIn = false;
     static user = null;
+    static authUnsubscribe = null;
+    static userProfileFetched = false;
     
     // Initialize Authentication Service
     static async init() {
@@ -47,49 +49,65 @@ class AuthService {
     }
     
     // Authentication State Management
-static setupAuthStateListener() {
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            this.user = user;
-            this.isLoggedIn = true;
-            
-            try {
-                const token = await TokenManager.getFirebaseToken(user);
-                if (token) {
-                    localStorage.setItem('authToken', token);
-                    // Set up token refresh interval
-                    TokenManager.setupTokenRefresh(user);
+    static setupAuthStateListener() {
+        // Clear any existing auth state listener to prevent duplicates
+        if (this.authUnsubscribe) {
+            this.authUnsubscribe();
+        }
+        
+        // Set up new listener with proper reference for cleanup
+        this.authUnsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                this.user = user;
+                this.isLoggedIn = true;
+                
+                try {
+                    const token = await TokenManager.getFirebaseToken(user);
+                    if (token) {
+                        localStorage.setItem('authToken', token);
+                        // Set up token refresh interval
+                        TokenManager.setupTokenRefresh(user);
+                    }
+                    
+                    // Only fetch user profile once
+                    if (!this.userProfileFetched) {
+                        await UserService.fetchUserProfile(user);
+                        this.userProfileFetched = true;
+                    }
+                    
+                    // Check if there's pending profile data to sync
+                    await UserService.syncPendingProfile(user);
+                    
+                    // Update UI once all data is loaded
+                    this.updateUI();
+                    this.enableLoginRequiredFeatures();
+                    
+                    // Hide login modal if it's open
+                    if (window.Modal && typeof window.Modal.hide === 'function') {
+                        window.Modal.hide();
+                    }
+                    
+                    if (window.showToast) {
+                        window.showToast(`Welcome back, ${user.displayName || user.email}!`, 'success');
+                    }
+                } catch (error) {
+                    console.error('Auth state update error:', error);
+                    ErrorHandler.handleAuthError(error, 
+                        () => TokenManager.refreshToken(this.user), 
+                        () => this.logout()
+                    );
                 }
-                
-                // Fetch the user profile from Firestore if needed
-                await UserService.fetchUserProfile(user);
-                
-                // Check if there's pending profile data to sync
-                await UserService.syncPendingProfile(user);
+            } else {
+                this.user = null;
+                this.isLoggedIn = false;
+                this.userProfileFetched = false;
+                TokenManager.clearTokenData();
                 
                 this.updateUI();
-                this.enableLoginRequiredFeatures();
-                
-                if (window.showToast) {
-                    window.showToast(`Welcome back, ${user.displayName || user.email}!`, 'success');
-                }
-            } catch (error) {
-                console.error('Auth state update error:', error);
-                ErrorHandler.handleAuthError(error, 
-                    () => TokenManager.refreshToken(this.user), 
-                    () => this.logout()
-                );
+                this.disableLoginRequiredFeatures();
             }
-        } else {
-            this.user = null;
-            this.isLoggedIn = false;
-            TokenManager.clearTokenData();
-            
-            this.updateUI();
-            this.disableLoginRequiredFeatures();
-        }
-    });
-}
+        });
+    }
     
     // Secure Redirect Handling
     static async handleSecureRedirect(targetUrl) {
@@ -248,6 +266,21 @@ static setupAuthStateListener() {
             submitButton.disabled = true;
             submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging In...';
 
+            // Check if account is rate-limited before attempting login
+            const isRateLimited = localStorage.getItem(`rate_limited_${emailInput.value.trim()}`);
+            if (isRateLimited) {
+                const rateLimitExpiry = parseInt(isRateLimited);
+                if (Date.now() < rateLimitExpiry) {
+                    throw { 
+                        code: 'auth/too-many-requests',
+                        message: 'Too many login attempts. Please try again later or reset your password.'
+                    };
+                } else {
+                    // Rate limit expired, clear it
+                    localStorage.removeItem(`rate_limited_${emailInput.value.trim()}`);
+                }
+            }
+
             const userCredential = await signInWithEmailAndPassword(
                 auth, 
                 emailInput.value.trim(), 
@@ -280,6 +313,14 @@ static setupAuthStateListener() {
         } catch (error) {
             const errorMessage = ErrorHandler.mapAuthError(error);
             ErrorHandler.displayError('loginPasswordError', errorMessage);
+            
+            // Handle rate limiting with local tracking
+            if (error.code === 'auth/too-many-requests') {
+                // Set a 30-minute rate limit
+                const thirtyMinutesFromNow = Date.now() + (30 * 60 * 1000);
+                localStorage.setItem(`rate_limited_${emailInput.value.trim()}`, thirtyMinutesFromNow.toString());
+                ErrorHandler.offerPasswordReset();
+            }
         } finally {
             submitButton.disabled = false;
             submitButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
@@ -330,6 +371,9 @@ static setupAuthStateListener() {
             
             await sendPasswordResetEmail(auth, emailInput.value.trim());
             
+            // Clear any rate limiting for this email after password reset
+            localStorage.removeItem(`rate_limited_${emailInput.value.trim()}`);
+            
             if (window.showToast) {
                 window.showToast('Password reset email sent!', 'success');
             }
@@ -375,15 +419,39 @@ static setupAuthStateListener() {
 
         if (userInfoContainer) {
             userInfoContainer.innerHTML = this.isLoggedIn 
-                ? `<div class="user-menu">
-                    <span>Welcome, ${this.user.displayName || this.user.email}</span>
-                    <button onclick="Auth.logout()" class="logout-btn">
-                        <i class="fas fa-sign-out-alt"></i> Logout
+                ? `<div class="user-dropdown">
+                    <button class="user-dropdown-toggle">
+                        <i class="fas fa-user-circle"></i>
+                        <span class="username">${this.user.displayName || this.user.email}</span>
+                        <i class="fas fa-chevron-down"></i>
                     </button>
-                   </div>`
+                    <div class="user-dropdown-menu">
+                        <a href="${this.userRole === 'admin' ? '/admin/dashboard.html' : '/admin/users.html'}" class="dashboard-link">
+                            <i class="fas ${this.userRole === 'admin' ? 'fa-tachometer-alt' : 'fa-user'}"></i> 
+                            ${this.userRole === 'admin' ? 'Admin Dashboard' : 'My Profile'}
+                        </a>
+                        <a href="#" class="logout-link" onclick="Auth.logout(); return false;">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>`
                 : `<button onclick="Modal.show()" class="login-btn">
                     <i class="fas fa-sign-in-alt"></i> Login
                    </button>`;
+                   
+            // Add event listeners to dropdown elements if logged in
+            if (this.isLoggedIn) {
+                const toggleButton = userInfoContainer.querySelector('.user-dropdown-toggle');
+                if (toggleButton) {
+                    toggleButton.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        const dropdownMenu = userInfoContainer.querySelector('.user-dropdown-menu');
+                        if (dropdownMenu) {
+                            dropdownMenu.classList.toggle('active');
+                        }
+                    });
+                }
+            }
         }
     }
 
