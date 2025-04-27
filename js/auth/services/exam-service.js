@@ -279,7 +279,8 @@ static renderDynamicFields(checkboxes, container, fieldConfigs) {
 static collectExamDataFromForm() {
     // First, log all exam-related inputs in the document
     console.log("All input fields in the form:");
-    document.querySelectorAll('input[type="number"]').forEach(input => {
+    const numberInputs = document.querySelectorAll('input[type="number"]');
+    numberInputs.forEach(input => {
         console.log(`Input field: ${input.id}, value: ${input.value}`);
     });
     
@@ -288,42 +289,25 @@ static collectExamDataFromForm() {
     
     const examData = {};
     
-    examCheckboxes.forEach(checkbox => {
-        const examType = checkbox.id.replace('has', '');
-        const fieldId = examType + 'Rank';
-        
-        // Try getting the input element by direct selector instead of getElementById
-        const rankInput = document.querySelector(`#signupStep2Form #${fieldId}`) || 
-                          document.querySelector(`input[id="${fieldId}"]`) ||
-                          document.getElementById(fieldId);
-        
-        console.log(`collectExamDataFromForm - Processing ${examType}: input exists: ${!!rankInput}, value: ${rankInput ? rankInput.value : 'none'}`);
-        
-        if (rankInput && rankInput.value.trim()) {
-            examData[examType] = {
-                rank: parseInt(rankInput.value.trim()),
-                dateAdded: new Date().toISOString()
-            };
-            console.log(`collectExamDataFromForm - Added ${examType} with rank ${rankInput.value.trim()}`);
-        } else {
-            // Find the input by inspecting all inputs
-            const allInputs = document.querySelectorAll('input[type="number"]');
-            console.log(`Looking for ${fieldId} among ${allInputs.length} number inputs`);
-            
-            allInputs.forEach(input => {
-                if (input.id.includes(examType.toLowerCase()) || input.id.includes(fieldId.toLowerCase())) {
-                    console.log(`Found potential match: ${input.id} with value: ${input.value}`);
-                    if (input.value.trim()) {
-                        examData[examType] = {
-                            rank: parseInt(input.value.trim()),
-                            dateAdded: new Date().toISOString()
-                        };
-                        console.log(`collectExamDataFromForm - Added ${examType} with rank ${input.value.trim()} (found via alternative search)`);
-                    }
-                }
-            });
-        }
-    });
+    // Direct collection from visible number inputs
+    if (numberInputs.length > 0 && examCheckboxes.length > 0) {
+        numberInputs.forEach(input => {
+            if (input.value.trim()) {
+                // Extract exam type from input ID (remove "Rank" suffix)
+                let examType = input.id.replace(/rank$/i, '');
+                
+                // Capitalize first letter for consistent formatting
+                examType = examType.charAt(0).toUpperCase() + examType.slice(1);
+                
+                console.log(`Found input ${input.id} with value ${input.value}, using exam type: ${examType}`);
+                
+                examData[examType] = {
+                    rank: parseInt(input.value.trim()),
+                    dateAdded: new Date().toISOString()
+                };
+            }
+        });
+    }
     
     console.log("collectExamDataFromForm - Final examData:", JSON.stringify(examData));
     return examData;
