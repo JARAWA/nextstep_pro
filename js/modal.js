@@ -42,6 +42,12 @@ export default class Modal {
     }
 
     static show() {
+        // Check if user is already logged in
+        if (window.Auth && window.Auth.isLoggedIn) {
+            console.log('User already logged in, not showing login modal');
+            return;
+        }
+        
         if (this.modal) {
             this.modal.style.display = 'block';
             document.body.style.overflow = 'hidden';
@@ -192,8 +198,10 @@ export default class Modal {
         requirements.forEach(req => {
             req.classList.remove('met');
             const icon = req.querySelector('i');
-            icon.classList.remove('fa-check-circle');
-            icon.classList.add('fa-circle');
+            if (icon) {
+                icon.classList.remove('fa-check-circle');
+                icon.classList.add('fa-circle');
+            }
         });
 
         // Hide all error messages
@@ -203,6 +211,21 @@ export default class Modal {
 
     static showForgotPassword() {
         this.toggleForms('forgot');
+    }
+
+    // Check if the modal is currently visible
+    static isVisible() {
+        return this.modal && this.modal.style.display === 'block';
+    }
+    
+    // Convenience method to check login state and hide modal if needed
+    static checkLoginAndHide() {
+        if (window.Auth && window.Auth.isLoggedIn && this.isVisible()) {
+            console.log('User is logged in, hiding login modal');
+            this.hide();
+            return true;
+        }
+        return false;
     }
 }
 
