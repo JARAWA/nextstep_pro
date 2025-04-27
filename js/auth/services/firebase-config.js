@@ -13,7 +13,7 @@ const firebaseConfig = {
     apiKey: "AIzaSyC7tvZe9NeHRhYuTVrQnkaSG7Nkj3ZS40U",
     authDomain: "nextstep-log.firebaseapp.com",
     projectId: "nextstep-log",
-    storageBucket: "nextstep-log.firebasestorage.app",
+    storageBucket: "nextstep-log.appspot.com", // Corrected storage bucket URL
     messagingSenderId: "9308831285",
     appId: "1:9308831285:web:d55ed6865804c50f743b7c",
     measurementId: "G-BPGP3TBN3N"
