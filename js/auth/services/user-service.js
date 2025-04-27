@@ -163,64 +163,58 @@ class UserService {
      * @param {Object} user - Firebase user object
      * @returns {Promise<Object|null>} User profile data or null if not found
      */
-    static async fetchUserProfile(user) {
-        if (!user || !user.uid) {
-            console.error('Invalid user object provided');
-            return null;
-        }
+static async fetchUserProfile(user) {
+    if (!user || !user.uid) {
+        console.error('Invalid user object provided');
+        return null;
+    }
+    
+    console.log("Attempting to fetch profile for user:", user.uid);
+    console.log("Current auth token state:", !!TokenManager.getCurrentToken());
+    
+    try {
+        const userDocRef = doc(db, "users", user.uid);
+        console.log("Fetching document at path:", `users/${user.uid}`);
+        const userDoc = await getDoc(userDocRef);
         
-        // Prevent duplicate fetches within a short time window
-        const now = Date.now();
-        if (this.fetchInProgress || (this.lastFetchTimestamp && now - this.lastFetchTimestamp < 2000)) {
-            console.log("Skipping duplicate user profile fetch");
-            return this.userData;
-        }
+        console.log("Document fetch result:", userDoc.exists() ? "Document exists" : "Document doesn't exist");
         
-        this.fetchInProgress = true;
-        
-        try {
-            const userDocRef = doc(db, "users", user.uid);
-            const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+            const userData = userDoc.data();
+            console.log("User profile data loaded:", userData);
+            // Cache user data
+            this.userData = userData;
+            return userData;
+        } else {
+            console.log("No user profile found");
             
-            if (userDoc.exists()) {
-                const userData = userDoc.data();
-                console.log("User profile data loaded:", userData);
-                // Cache user data
-                this.userData = userData;
-                this.lastFetchTimestamp = now;
-                this.fetchInProgress = false;
-                return userData;
-            } else {
-                console.log("No user profile found");
-                
-                // Check if we have pending profile data in localStorage
-                const pendingData = this.getPendingProfileFromLocalStorage(user.uid);
-                if (pendingData) {
-                    console.log("Found pending profile data in localStorage");
-                    this.userData = pendingData;
-                    this.lastFetchTimestamp = now;
-                    this.fetchInProgress = false;
-                    return pendingData;
-                }
-                
-                this.fetchInProgress = false;
-                return null;
-            }
-        } catch (error) {
-            console.error("Error fetching user profile:", error);
-            this.fetchInProgress = false;
-            
-            // Fall back to localStorage if Firestore fails
+            // Check if we have pending profile data in localStorage
             const pendingData = this.getPendingProfileFromLocalStorage(user.uid);
             if (pendingData) {
-                console.log("Using pending profile data from localStorage due to Firestore error");
+                console.log("Found pending profile data in localStorage");
                 this.userData = pendingData;
                 return pendingData;
             }
             
             return null;
         }
+    } catch (error) {
+        console.error("Detailed fetch error:", error);
+        // Include more error properties
+        console.error("Error code:", error.code);
+        console.error("Error message:", error.message);
+        
+        // Fall back to localStorage if Firestore fails
+        const pendingData = this.getPendingProfileFromLocalStorage(user.uid);
+        if (pendingData) {
+            console.log("Using pending profile data from localStorage due to Firestore error");
+            this.userData = pendingData;
+            return pendingData;
+        }
+        
+        return null;
     }
+}
     
     /**
      * Update user profile data in Firestore
