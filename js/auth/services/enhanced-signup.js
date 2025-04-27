@@ -427,6 +427,13 @@ class EnhancedSignupService {
             // Step 2: Collect exam data
             const examData = ExamService.collectExamDataFromForm();
             console.log("Collected exam data:", JSON.stringify(examData));
+            console.log("Exam checkboxes checked:", document.querySelectorAll('.exam-checkbox:checked').length);
+            document.querySelectorAll('.exam-checkbox:checked').forEach(checkbox => {
+                const examType = checkbox.id.replace('has', '');
+                const fieldId = examType + 'Rank';
+                const rankInput = document.getElementById(fieldId);
+                console.log(`Exam ${examType}: input exists: ${!!rankInput}, value: ${rankInput ? rankInput.value : 'none'}`);
+            });
             
             // Step 3: Create Firestore user document
             try {
@@ -439,7 +446,9 @@ class EnhancedSignupService {
                     createdAt: new Date().toISOString(),
                     lastUpdated: new Date().toISOString()
                 };
-                
+                console.log("Final userData object prepared for storage:", JSON.stringify(userData));
+                console.log("examData in userData:", JSON.stringify(userData.examData));
+                console.log("Number of exam entries:", Object.keys(userData.examData).length);
                 console.log("Attempting to store user data with exams:", 
                     Object.keys(examData).length, "exam entries");
                 
