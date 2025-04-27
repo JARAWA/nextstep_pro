@@ -276,30 +276,58 @@ static renderDynamicFields(checkboxes, container, fieldConfigs) {
      * Collect exam data from enhanced signup form
      * @returns {Object} Collected exam data
      */
-    static collectExamDataFromForm() {
-        const examCheckboxes = document.querySelectorAll('.exam-checkbox:checked');
-        console.log("collectExamDataFromForm - Number of checked exam checkboxes:", examCheckboxes.length);
+static collectExamDataFromForm() {
+    // First, log all exam-related inputs in the document
+    console.log("All input fields in the form:");
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+        console.log(`Input field: ${input.id}, value: ${input.value}`);
+    });
     
-        const examData = {};
+    const examCheckboxes = document.querySelectorAll('.exam-checkbox:checked');
+    console.log("collectExamDataFromForm - Number of checked exam checkboxes:", examCheckboxes.length);
+    
+    const examData = {};
+    
+    examCheckboxes.forEach(checkbox => {
+        const examType = checkbox.id.replace('has', '');
+        const fieldId = examType + 'Rank';
         
-        examCheckboxes.forEach(checkbox => {
-            const examType = checkbox.id.replace('has', '');
-            const fieldId = examType + 'Rank';
-            const rankInput = document.getElementById(fieldId);
+        // Try getting the input element by direct selector instead of getElementById
+        const rankInput = document.querySelector(`#signupStep2Form #${fieldId}`) || 
+                          document.querySelector(`input[id="${fieldId}"]`) ||
+                          document.getElementById(fieldId);
+        
+        console.log(`collectExamDataFromForm - Processing ${examType}: input exists: ${!!rankInput}, value: ${rankInput ? rankInput.value : 'none'}`);
+        
+        if (rankInput && rankInput.value.trim()) {
+            examData[examType] = {
+                rank: parseInt(rankInput.value.trim()),
+                dateAdded: new Date().toISOString()
+            };
+            console.log(`collectExamDataFromForm - Added ${examType} with rank ${rankInput.value.trim()}`);
+        } else {
+            // Find the input by inspecting all inputs
+            const allInputs = document.querySelectorAll('input[type="number"]');
+            console.log(`Looking for ${fieldId} among ${allInputs.length} number inputs`);
             
-            console.log(`collectExamDataFromForm - Processing ${examType}: input exists: ${!!rankInput}, value: ${rankInput ? rankInput.value : 'none'}`);
-        
-            if (rankInput && rankInput.value.trim()) {
-                examData[examType] = {
-                    rank: parseInt(rankInput.value.trim()),
-                    dateAdded: new Date().toISOString()
-                };
-                console.log(`collectExamDataFromForm - Added ${examType} with rank ${rankInput.value.trim()}`);
-            }
-        });
-        console.log("collectExamDataFromForm - Final examData:", JSON.stringify(examData));
-        return examData;
-    }
+            allInputs.forEach(input => {
+                if (input.id.includes(examType.toLowerCase()) || input.id.includes(fieldId.toLowerCase())) {
+                    console.log(`Found potential match: ${input.id} with value: ${input.value}`);
+                    if (input.value.trim()) {
+                        examData[examType] = {
+                            rank: parseInt(input.value.trim()),
+                            dateAdded: new Date().toISOString()
+                        };
+                        console.log(`collectExamDataFromForm - Added ${examType} with rank ${input.value.trim()} (found via alternative search)`);
+                    }
+                }
+            });
+        }
+    });
+    
+    console.log("collectExamDataFromForm - Final examData:", JSON.stringify(examData));
+    return examData;
+}
     
     /**
      * Validate exam form fields
