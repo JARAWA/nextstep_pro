@@ -17,6 +17,8 @@ import { ErrorHandler } from '../utils/error-handler.js';
 
 class UserService {
     static userData = null;
+    static fetchInProgress = false;
+    static lastFetchTimestamp = null;
     
     /**
      * Create a new user profile in Firestore
@@ -167,6 +169,15 @@ class UserService {
             return null;
         }
         
+        // Prevent duplicate fetches within a short time window
+        const now = Date.now();
+        if (this.fetchInProgress || (this.lastFetchTimestamp && now - this.lastFetchTimestamp < 2000)) {
+            console.log("Skipping duplicate user profile fetch");
+            return this.userData;
+        }
+        
+        this.fetchInProgress = true;
+        
         try {
             const userDocRef = doc(db, "users", user.uid);
             const userDoc = await getDoc(userDocRef);
@@ -176,6 +187,8 @@ class UserService {
                 console.log("User profile data loaded:", userData);
                 // Cache user data
                 this.userData = userData;
+                this.lastFetchTimestamp = now;
+                this.fetchInProgress = false;
                 return userData;
             } else {
                 console.log("No user profile found");
@@ -185,13 +198,17 @@ class UserService {
                 if (pendingData) {
                     console.log("Found pending profile data in localStorage");
                     this.userData = pendingData;
+                    this.lastFetchTimestamp = now;
+                    this.fetchInProgress = false;
                     return pendingData;
                 }
                 
+                this.fetchInProgress = false;
                 return null;
             }
         } catch (error) {
             console.error("Error fetching user profile:", error);
+            this.fetchInProgress = false;
             
             // Fall back to localStorage if Firestore fails
             const pendingData = this.getPendingProfileFromLocalStorage(user.uid);
@@ -264,8 +281,9 @@ class UserService {
      * @returns {Promise<Object|null>} User profile data or null
      */
     static async getUserData(user) {
-        // Return cached data if available
-        if (this.userData) {
+        // Return cached data if available and not too old (within 5 minutes)
+        const now = Date.now();
+        if (this.userData && this.lastFetchTimestamp && now - this.lastFetchTimestamp < 300000) {
             return this.userData;
         }
         
