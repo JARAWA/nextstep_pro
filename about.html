@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Learn about NextStep - Your smart college admission guide for JOSAA, MHT-CET, and NEET-UG counselling">
+    <title>About NextStep - Your Smart College Admission Guide</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', path='/favicon.ico') }}">
+    
+    <!-- CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', path='/css/main.css') }}" rel="stylesheet">
+    
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    
+    <!-- Import your main CSS -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/modal.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    
+    <!-- Custom styles for this page -->
+    <style>
+        .page-header {
+            background-color: var(--gradient-start);
+            background-image: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+            padding: 40px 0;
+            margin-bottom: 40px;
+            color: white;
+        }
+        
+        .content-section {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .faq-item {
+            margin-bottom: 25px;
+            border-bottom: 1px dashed #e9ecef;
+            padding-bottom: 20px;
+        }
+        
+        .faq-question {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+        
+        .faq-answer {
+            padding-left: 5px;
+        }
+        
+        .highlight-box {
+            background-color: #f1f8ff;
+            border-left: 4px solid var(--primary-color);
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .feature-list li {
+            margin-bottom: 10px;
+        }
+        
+        .cta-button {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 15px;
+            transition: background-color 0.3s;
+        }
+        
+        .cta-button:hover {
+            background-color: var(--primary-dark);
+            color: white;
+        }
+    </style>
+    
+    <!-- Schema.org structured data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is NextStep?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "NextStep is a college choice filling platform that helps students predict and organize the best colleges they can get based on their entrance exam ranks like JEE Main, JEE Advanced, MHT-CET, and NEET-UG."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does NextStep generate my college list?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "NextStep uses your exam rank, category, home state, and previous years' closing ranks to suggest a personalized mix of ambitious, realistic, and safe college options."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which counselling processes does NextStep support?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "NextStep supports choice filling for JEE Main (JOSAA counselling), JEE Advanced (IIT admissions), MHT-CET (Engineering and Pharmacy), and NEET-UG (Medical admissions)."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why is choice filling so critical?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Filling the right college preference list is critical because it directly affects the seat you get. A well-planned list balances ambition and safety, maximizing your chances of securing a top college."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is NextStep free to use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, NextStep currently offers its core services for free, helping students make smarter counselling decisions without any cost."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I edit my generated preference list later?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes! You can modify the generated preference list to better align with your personal interests and goals before finalizing it for official counselling."
+          }
+        }
+      ]
+    }
+    </script>
+</head>
+<body>
+    <!-- Include Header -->
+    <div id="header-container"></div>
+
+    <!-- Include Navigation -->
+    <div id="nav-container"></div>
+
+    <!-- Header Section -->
+    <header class="page-header">
+        <div class="container">
+            <h1 class="text-center">About NextStep</h1>
+            <p class="lead text-center">Your Smart College Admission Guide</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container py-4">
+        <!-- About Section -->
+        <section class="content-section">
+            <h2>About NextStep – Your Smart College Admission Guide</h2>
+            
+            <p class="lead"><strong>Welcome to NextStep</strong> — your trusted partner for college admissions through <strong>JOSAA counselling</strong>, <strong>MHT-CET CAP rounds</strong>, and <strong>NEET-UG seat allotment</strong>.</p>
+            
+            <p>We specialize in providing <strong>personalized college preference lists</strong> based on your rank, helping you secure the best possible seat at your dream college.</p>
+            
+            <div class="highlight-box">
+                <p class="mb-0"><strong>No more guesswork. No more confusion. Only smart, strategic admission choices.</strong></p>
+            </div>
+            
+            <h3 class="mt-4">Why Is Filling the Right College Preference List So Important?</h3>
+            
+            <p>The <strong>college choice filling</strong> process can make or break your future. Whether you are applying through JEE Main, JEE Advanced, MHT-CET, or NEET-UG, the order of your college preferences determines which college and course you finally get.</p>
+            
+            <p>Here's why filling your preference list correctly is crucial:</p>
+            <ul class="feature-list">
+                <li><strong>Avoid being over-ambitious</strong>: Listing only top colleges above your rank may leave you without any seat.</li>
+                <li><strong>Avoid being too safe</strong>: Choosing only lower-ranked options can waste your potential and career prospects.</li>
+                <li><strong>Strategic balance</strong> between ambitious, realistic, and safe options ensures the best outcomes.</li>
+            </ul>
+            
+            <p>NextStep ensures that your college list is perfectly balanced to <strong>maximize your chances</strong> of getting into the best possible college based on your score.</p>
+            
+            <h3 class="mt-4">Common Mistakes Students Make During College Counselling</h3>
+            
+            <ul class="feature-list">
+                <li>Not including backup colleges, resulting in no admission.</li>
+                <li>Confusing college names and codes (especially in MHT-CET choice filling).</li>
+                <li>Ignoring reservation policies and eligibility requirements.</li>
+                <li>Choosing colleges without considering future goals like placements, research, or higher studies.</li>
+            </ul>
+            
+            <p>At NextStep, we guide you to avoid these mistakes and make well-informed decisions.</p>
+            
+            <h3 class="mt-4">How NextStep Helps You</h3>
+            
+            <p>We provide <strong>data-driven college recommendations</strong> based on:</p>
+            <ul class="feature-list">
+                <li>Your entrance exam rank (JEE Main, JEE Advanced, MHT-CET, NEET-UG)</li>
+                <li>Your category, home state, gender, and other eligibility criteria</li>
+                <li>Past year closing ranks and latest admission trends</li>
+            </ul>
+            
+            <p>NextStep's smart algorithm gives you a <strong>personalized, optimized college list</strong> that balances ambition and safety — giving you the edge during choice filling.</p>
+            
+            <div class="text-center mt-4">
+                <a href="/" class="cta-button">Try NextStep Now</a>
+            </div>
+        </section>
+        
+        <!-- FAQ Section -->
+        <section class="content-section">
+            <h2>Frequently Asked Questions (FAQs)</h2>
+            
+            <div class="faq-item">
+                <div class="faq-question">1. What is NextStep?</div>
+                <div class="faq-answer">
+                    <p>NextStep is a college choice filling platform that helps students predict and organize the best colleges they can get based on their entrance exam ranks like JEE Main, JEE Advanced, MHT-CET, and NEET-UG.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question">2. How does NextStep generate my college list?</div>
+                <div class="faq-answer">
+                    <p>We use your rank, exam category, state quota, and previous years' closing ranks to suggest a mix of ambitious, realistic, and safe colleges tailored just for you.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question">3. Which counselling processes does NextStep support?</div>
+                <div class="faq-answer">
+                    <p>We currently support choice filling for:</p>
+                    <ul>
+                        <li>JEE Main (through JOSAA counselling)</li>
+                        <li>JEE Advanced (IIT admissions)</li>
+                        <li>MHT-CET (Engineering/Pharmacy admissions in Maharashtra)</li>
+                        <li>NEET-UG (MBBS, BDS, AYUSH admissions)</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question">4. Why is choice filling so critical?</div>
+                <div class="faq-answer">
+                    <p>The correct preference list greatly improves your chances of getting a seat in a good college and prevents you from losing opportunities by being over-ambitious or under-confident.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question">5. Is NextStep free to use?</div>
+                <div class="faq-answer">
+                    <p>Yes! Currently, you can use NextStep's core services for free. We may introduce premium features in the future offering even deeper insights.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question">6. Can I edit my generated preference list later?</div>
+                <div class="faq-answer">
+                    <p>Of course! NextStep gives you a draft, which you can modify and finalize based on your personal interests and college priorities.</p>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <p><strong>Still have questions?</strong> Visit our <a href="/">homepage</a> or contact our team — we're here to help!</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Include Footer -->
+    <div id="footer-container"></div>
+
+    <!-- Include Modal -->
+    <div id="modal-container"></div>
+
+    <!-- Firebase and Scripts -->
+    <script type="module">
+      // Import the functions you need from the SDKs you need
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+      import { getAuth } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-analytics.js";
+
+      // Your web app's Firebase configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyC7tvZe9NeHRhYuTVrQnkaSG7Nkj3ZS40U",
+        authDomain: "nextstep-log.firebaseapp.com",
+        projectId: "nextstep-log",
+        storageBucket: "nextstep-log.firebasestorage.app",
+        messagingSenderId: "9308831285",
+        appId: "1:9308831285:web:d55ed6865804c50f743b7c",
+        measurementId: "G-BPGP3TBN3N"
+      };
+
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const analytics = getAnalytics(app);
+
+      // Export auth for use in other scripts
+      window.firebaseAuth = auth;
+    </script>
+    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/auth/index.js"></script>
+    <script type="module" src="js/modal.js"></script>
+</body>
+</html>
