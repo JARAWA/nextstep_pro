@@ -72,25 +72,36 @@ class ExamService {
      * @param {HTMLElement} container - Container for rank fields
      * @param {Object} fieldConfigs - Field configuration data
      */
-    static renderDynamicFields(checkboxes, container, fieldConfigs) {
-        container.innerHTML = '';
-        
-        checkboxes.forEach(checkbox => {
-            if (checkbox.checked) {
-                const fieldConfig = fieldConfigs[checkbox.id];
-                if (fieldConfig) {
-                    const fieldDiv = document.createElement('div');
-                    fieldDiv.className = 'form-group rank-field active';
-                    fieldDiv.innerHTML = `
-                        <label for="${fieldConfig.id}">${fieldConfig.label}*</label>
-                        <input type="number" id="${fieldConfig.id}" placeholder="${fieldConfig.placeholder}" required>
-                        <div id="${fieldConfig.id}Error" class="error-message"></div>
-                    `;
-                    container.appendChild(fieldDiv);
-                }
+    // In exam-service.js, modify the renderDynamicFields method:
+static renderDynamicFields(checkboxes, container, fieldConfigs) {
+    console.log("renderDynamicFields - Rendering fields for", checkboxes.length, "checkboxes");
+    container.innerHTML = '';
+    
+    checkboxes.forEach(checkbox => {
+        console.log(`renderDynamicFields - Checkbox ${checkbox.id} checked: ${checkbox.checked}`);
+        if (checkbox.checked) {
+            const fieldConfig = fieldConfigs[checkbox.id];
+            if (fieldConfig) {
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'form-group rank-field active';
+                fieldDiv.innerHTML = `
+                    <label for="${fieldConfig.id}">${fieldConfig.label}*</label>
+                    <input type="number" id="${fieldConfig.id}" placeholder="${fieldConfig.placeholder}" required>
+                    <div id="${fieldConfig.id}Error" class="error-message"></div>
+                `;
+                container.appendChild(fieldDiv);
+                console.log(`renderDynamicFields - Created field for ${fieldConfig.id}`);
+            } else {
+                console.log(`renderDynamicFields - No field config found for ${checkbox.id}`);
             }
-        });
-    }
+        }
+    });
+    
+    // Log all created input fields
+    container.querySelectorAll('input').forEach(input => {
+        console.log(`renderDynamicFields - Created input with id: ${input.id}`);
+    });
+}
     
     /**
      * Update exam data in Firestore
@@ -267,6 +278,8 @@ class ExamService {
      */
     static collectExamDataFromForm() {
         const examCheckboxes = document.querySelectorAll('.exam-checkbox:checked');
+        console.log("collectExamDataFromForm - Number of checked exam checkboxes:", examCheckboxes.length);
+    
         const examData = {};
         
         examCheckboxes.forEach(checkbox => {
@@ -274,14 +287,17 @@ class ExamService {
             const fieldId = examType + 'Rank';
             const rankInput = document.getElementById(fieldId);
             
+            console.log(`collectExamDataFromForm - Processing ${examType}: input exists: ${!!rankInput}, value: ${rankInput ? rankInput.value : 'none'}`);
+        
             if (rankInput && rankInput.value.trim()) {
                 examData[examType] = {
                     rank: parseInt(rankInput.value.trim()),
                     dateAdded: new Date().toISOString()
                 };
+                console.log(`collectExamDataFromForm - Added ${examType} with rank ${rankInput.value.trim()}`);
             }
         });
-        
+        console.log("collectExamDataFromForm - Final examData:", JSON.stringify(examData));
         return examData;
     }
     
