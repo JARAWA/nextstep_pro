@@ -9,7 +9,7 @@ import ExamService from './services/exam-service.js';
 import EnhancedSignupService from './services/enhanced-signup.js';
 import { Validator, validateForm } from './utils/validation.js';
 import { ErrorHandler } from './utils/error-handler.js';
-import { TokenManager } from './utils/token-manager.js';
+import { TokenManager } from './services/token-manager.js';
 
 // Main Authentication class that integrates all services
 class Auth {
