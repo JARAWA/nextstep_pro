@@ -48,41 +48,32 @@ class AuthService {
         }
     }
     
-    // Authentication State Management
-    static setupAuthStateListener() {
-        // Clear any existing auth state listener to prevent duplicates
-        if (this.authUnsubscribe) {
-            this.authUnsubscribe();
-        }
-        
-        // Set up new listener with proper reference for cleanup
-        this.authUnsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                this.user = user;
-                this.isLoggedIn = true;
-                
-                try {
-                    const token = await TokenManager.getFirebaseToken(user);
-                    if (token) {
-                        localStorage.setItem('authToken', token);
-                        // Set up token refresh interval
-                        TokenManager.setupTokenRefresh(user);
-                    }
+ static setupAuthStateListener() {
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            this.user = user;
+            this.isLoggedIn = true;
+            
+            try {
+                // Get token first and make sure it's valid
+                const token = await TokenManager.getFirebaseToken(user);
+                if (token) {
+                    localStorage.setItem('authToken', token);
+                    TokenManager.setupTokenRefresh(user);
                     
-                    // Only fetch user profile once
-                    if (!this.userProfileFetched) {
+                    // Add a small delay to ensure the token is fully processed
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    // Now try to fetch the profile
+                    try {
                         await UserService.fetchUserProfile(user);
-                        this.userProfileFetched = true;
+                    } catch (profileError) {
+                        console.warn('Failed to fetch user profile, but continuing with authentication:', profileError);
                     }
                     
-                    // Check if there's pending profile data to sync
-                    await UserService.syncPendingProfile(user);
-                    
-                    // Update UI once all data is loaded
                     this.updateUI();
                     this.enableLoginRequiredFeatures();
                     
-                    // Hide login modal if it's open
                     if (window.Modal && typeof window.Modal.hide === 'function') {
                         window.Modal.hide();
                     }
@@ -90,24 +81,26 @@ class AuthService {
                     if (window.showToast) {
                         window.showToast(`Welcome back, ${user.displayName || user.email}!`, 'success');
                     }
-                } catch (error) {
-                    console.error('Auth state update error:', error);
-                    ErrorHandler.handleAuthError(error, 
-                        () => TokenManager.refreshToken(this.user), 
-                        () => this.logout()
-                    );
+                } else {
+                    console.error('Failed to obtain valid token');
                 }
-            } else {
-                this.user = null;
-                this.isLoggedIn = false;
-                this.userProfileFetched = false;
-                TokenManager.clearTokenData();
-                
-                this.updateUI();
-                this.disableLoginRequiredFeatures();
+            } catch (error) {
+                console.error('Auth state update error:', error);
+                ErrorHandler.handleAuthError(error, 
+                    () => TokenManager.refreshToken(this.user), 
+                    () => this.logout()
+                );
             }
-        });
-    }
+        } else {
+            this.user = null;
+            this.isLoggedIn = false;
+            TokenManager.clearTokenData();
+            
+            this.updateUI();
+            this.disableLoginRequiredFeatures();
+        }
+    });
+}
     
     // Secure Redirect Handling
     static async handleSecureRedirect(targetUrl) {
