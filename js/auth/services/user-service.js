@@ -29,7 +29,10 @@ class UserService {
             console.error('Invalid user object provided');
             return false;
         }
-        
+        console.log("createUserProfile received profileData:", JSON.stringify(profileData));
+        console.log("examData in profileData:", JSON.stringify(profileData.examData));
+        console.log("Number of exam entries in profile:", profileData.examData ? Object.keys(profileData.examData).length : 0);
+  
         try {
             // Use retry mechanism for Firestore operations
             const { success, error } = await ErrorHandler.retryOperation(async () => {
