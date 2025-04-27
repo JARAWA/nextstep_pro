@@ -1,4 +1,4 @@
-import Auth from './auth.js';
+import Auth from './auth/index.js';
 import Modal from './modal.js';
 
 document.addEventListener('DOMContentLoaded', function() {
