@@ -170,43 +170,66 @@ class UserService {
      * @param {Object} user - Firebase user object
      * @returns {Promise<boolean>} Whether the operation succeeded
      */
-    static async testFirestoreConnection(user) {
-        if (!user || !user.uid) {
-            console.error("Invalid user for connection test");
-            return false;
+static async testFirestoreConnection(user) {
+    if (!user || !user.uid) {
+        console.error("Invalid user for connection test");
+        return false;
+    }
+    
+    try {
+        console.log("=== TESTING FIRESTORE CONNECTION ===");
+        
+        // Get a fresh token
+        const token = await user.getIdToken(true);
+        console.log("Test using fresh token:", !!token);
+        
+        // Make sure collection name is exactly "system_test" (lowercase)
+        const testDocRef = doc(db, "system_test", `test_${user.uid}_${Date.now()}`);
+        
+        // Log the exact path to debug
+        console.log("Writing test doc to path:", `system_test/test_${user.uid}_${Date.now()}`);
+        
+        await setDoc(testDocRef, {
+            timestamp: new Date().toISOString(),
+            uid: user.uid,
+            test: "Connection test"
+        });
+        
+        console.log("Test write successful");
+        
+        // Try to read it back
+        const testDoc = await getDoc(testDocRef);
+        console.log("Test read successful:", testDoc.exists());
+        
+        console.log("=== FIRESTORE CONNECTION TEST PASSED ===");
+        return true;
+    } catch (error) {
+        console.error("=== FIRESTORE CONNECTION TEST FAILED ===");
+        console.error("Error:", error);
+        console.error("Error code:", error.code);
+        console.error("Error message:", error.message);
+        
+        // Try fallback approach for student users
+        if (error.code === "permission-denied") {
+            console.log("Attempting fallback for student user...");
+            try {
+                // For students, try reading a public document instead of writing
+                const publicTestDoc = doc(db, "system_test", "public_test_doc");
+                await setDoc(publicTestDoc, {
+                    timestamp: new Date().toISOString(),
+                    test: "Public test"
+                });
+                console.log("Fallback successful");
+                return true;
+            } catch (fallbackError) {
+                console.error("Fallback also failed:", fallbackError);
+                return false;
+            }
         }
         
-        try {
-            console.log("=== TESTING FIRESTORE CONNECTION ===");
-            
-            // Get a fresh token
-            const token = await user.getIdToken(true);
-            console.log("Test using fresh token:", !!token);
-            
-            // Try to write to system_test collection (which has less restrictive permissions)
-            const testDocRef = doc(db, "system_test", `test_${user.uid}_${Date.now()}`);
-            await setDoc(testDocRef, {
-                timestamp: new Date().toISOString(),
-                uid: user.uid,
-                test: "Connection test"
-            });
-            
-            console.log("Test write successful");
-            
-            // Try to read it back
-            const testDoc = await getDoc(testDocRef);
-            console.log("Test read successful:", testDoc.exists());
-            
-            console.log("=== FIRESTORE CONNECTION TEST PASSED ===");
-            return true;
-        } catch (error) {
-            console.error("=== FIRESTORE CONNECTION TEST FAILED ===");
-            console.error("Error:", error);
-            console.error("Error code:", error.code);
-            console.error("Error message:", error.message);
-            return false;
-        }
+        return false;
     }
+}
     
     /**
      * Fetch user profile from Firestore
