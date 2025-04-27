@@ -23,20 +23,39 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof Auth.initExtended === 'function') {
             Auth.initExtended() // Use the enhanced version with additional user data collection
                 .then(() => {
-                    // Initialize user dropdown after auth is initialized
-                    userDropdown.init();
+                    // Initialize user dropdown AFTER components are loaded and auth is initialized
+                    // Add a small delay to ensure DOM is fully updated
+                    setTimeout(() => {
+                        if (document.getElementById('user-info')) {
+                            userDropdown.init();
+                        } else {
+                            console.error('User info container still not found after loading components');
+                        }
+                    }, 300);
                 });
         } else if (typeof Auth.init === 'function') {
             Auth.init() // Fallback to standard initialization
                 .then(() => {
-                    // Initialize user dropdown after auth is initialized
-                    userDropdown.init();
+                    // Initialize user dropdown AFTER components are loaded and auth is initialized
+                    setTimeout(() => {
+                        if (document.getElementById('user-info')) {
+                            userDropdown.init();
+                        } else {
+                            console.error('User info container still not found after loading components');
+                        }
+                    }, 300);
                 });
             console.warn('Enhanced auth features not available');
         } else {
             console.error('Auth.init is not a function');
-            // Still try to initialize the dropdown as it has fallback mechanisms
-            userDropdown.init();
+            // Still try to initialize the dropdown after a delay
+            setTimeout(() => {
+                if (document.getElementById('user-info')) {
+                    userDropdown.init();
+                } else {
+                    console.error('User info container still not found after loading components');
+                }
+            }, 300);
         }
     }).catch(error => {
         console.error('Error loading components:', error);
