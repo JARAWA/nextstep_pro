@@ -1,5 +1,6 @@
 import Auth from './auth/index.js';
 import Modal from './modal.js';
+import userDropdown from './user-dropdown.js';
 
 document.addEventListener('DOMContentLoaded', function() {
     // Load all components
@@ -20,12 +21,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Initialize the enhanced auth service
         if (typeof Auth.initExtended === 'function') {
-            Auth.initExtended(); // Use the enhanced version with additional user data collection
+            Auth.initExtended() // Use the enhanced version with additional user data collection
+                .then(() => {
+                    // Initialize user dropdown after auth is initialized
+                    userDropdown.init();
+                });
         } else if (typeof Auth.init === 'function') {
-            Auth.init(); // Fallback to standard initialization
+            Auth.init() // Fallback to standard initialization
+                .then(() => {
+                    // Initialize user dropdown after auth is initialized
+                    userDropdown.init();
+                });
             console.warn('Enhanced auth features not available');
         } else {
             console.error('Auth.init is not a function');
+            // Still try to initialize the dropdown as it has fallback mechanisms
+            userDropdown.init();
         }
     }).catch(error => {
         console.error('Error loading components:', error);
