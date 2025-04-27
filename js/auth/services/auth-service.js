@@ -15,7 +15,7 @@ import {
 import { auth, googleProvider } from './firebase-config.js';
 import { Validator, validateForm } from '../utils/validation.js';
 import { ErrorHandler } from '../utils/error-handler.js';
-import { TokenManager } from '../utils/token-manager.js';
+import { TokenManager } from '../services/token-manager.js';
 import UserService from './user-service.js';
 
 class AuthService {
