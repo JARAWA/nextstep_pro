@@ -1,442 +1,561 @@
 /**
- * User Dropdown Module
- * Creates and manages a dropdown menu in the user-info container
- * that shows username and role-based navigation options
+ * User service for managing user profile data in Firestore
  */
-import { AuthService, UserService } from './auth/index.js';
+import { 
+    doc, 
+    setDoc,
+    getDoc,
+    updateDoc,
+    collection,
+    query,
+    where,
+    getDocs
+} from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
-// Main class for user dropdown functionality
-class UserDropdown {
-    constructor() {
-        this.container = null;
-        this.currentUser = null;
-        this.userRole = 'student'; // Default role
-        this.isOpen = false;
-        this.initAttempts = 0;
-        this.maxInitAttempts = 3;
-        this.initialized = false;
-    }
+import { db } from './firebase-config.js';
+import { ErrorHandler } from '../utils/error-handler.js';
+import { TokenManager } from '../utils/token-manager.js';
 
+class UserService {
+    static userData = null;
+    static fetchInProgress = false;
+    static lastFetchTimestamp = null;
+    static _retryCount = 0;
+    static MAX_RETRIES = 3;
+    
     /**
-     * Initialize the dropdown functionality
-     */
-    init() {
-        // Use a more reliable approach to get container
-        this.container = document.getElementById('user-info');
-        
-        if (!this.container) {
-            console.error('User info container not found, will retry');
-            
-            // Try again after a delay to ensure DOM is fully loaded
-            if (this.initAttempts < this.maxInitAttempts) {
-                this.initAttempts++;
-                setTimeout(() => {
-                    console.log(`Retry attempt ${this.initAttempts} to initialize user dropdown`);
-                    this.init();
-                }, 1000);
-            } else {
-                console.error(`Failed to initialize user dropdown after ${this.maxInitAttempts} attempts`);
-            }
-            return;
-        }
-
-        if (this.initialized) {
-            console.log('User dropdown already initialized, skipping');
-            return;
-        }
-
-        this.initialized = true;
-        console.log('User dropdown initialized successfully');
-        
-        // Listen for authentication state changes
-        this.setupAuthListener();
-        this.setupDomListeners();
-        
-        // Check current auth state immediately
-        this.checkCurrentAuthState();
-    }
-
-    /**
-     * Set up DOM event listeners
-     */
-    setupDomListeners() {
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (event) => {
-            if (this.container && !this.container.contains(event.target) && this.isOpen) {
-                this.closeDropdown();
-            }
-        });
-    }
-
-    /**
-     * Check the current authentication state
-     */
-    checkCurrentAuthState() {
-        // Directly use Auth module if available
-        if (window.Auth) {
-            if (window.Auth.isLoggedIn && window.Auth.user) {
-                console.log('User is already logged in, initializing dropdown');
-                this.handleUserLogin(window.Auth.user);
-            } else {
-                console.log('User is not logged in');
-                this.handleUserLogout();
-            }
-        }
-    }
-
-    /**
-     * Set up listener for authentication state changes
-     */
-    setupAuthListener() {
-        // Use AuthService if available through direct import
-        if (typeof AuthService !== 'undefined' && AuthService) {
-            console.log('Using imported AuthService for auth state changes');
-            
-            // Check if we can directly access the current user
-            if (AuthService.isLoggedIn && AuthService.user) {
-                this.handleUserLogin(AuthService.user);
-            }
-        }
-        
-        // Use global Auth object as fallback
-        else if (window.Auth) {
-            console.log('Using global Auth object for auth state changes');
-            
-            // Set up a custom listener that checks Auth.user regularly
-            this.authCheckInterval = setInterval(() => {
-                if (window.Auth.isLoggedIn && window.Auth.user) {
-                    if (!this.currentUser || this.currentUser.uid !== window.Auth.user.uid) {
-                        console.log('User state changed, updating dropdown');
-                        this.handleUserLogin(window.Auth.user);
-                    }
-                } else if (this.currentUser) {
-                    console.log('User logged out, updating dropdown');
-                    this.handleUserLogout();
-                }
-            }, 2000); // Check every 2 seconds
-        }
-        
-        // Try to use Firebase auth directly as last resort
-        else if (window.firebase && window.firebase.auth) {
-            console.log('Using Firebase auth directly for auth state changes');
-            window.firebase.auth().onAuthStateChanged((user) => {
-                if (user) {
-                    this.handleUserLogin(user);
-                } else {
-                    this.handleUserLogout();
-                }
-            });
-        } else {
-            console.warn('No auth service available for dropdown, will use manual checks');
-            
-            // Set up a manual check that runs every few seconds to look for auth changes
-            this.authCheckInterval = setInterval(() => {
-                const userInfo = document.querySelector('.user-info');
-                const hasUserInfo = userInfo && userInfo.innerHTML.includes('user-dropdown');
-                
-                if (window.Auth && window.Auth.isLoggedIn && window.Auth.user) {
-                    if (!this.currentUser) {
-                        this.handleUserLogin(window.Auth.user);
-                    }
-                } else if (this.currentUser && !window.Auth?.isLoggedIn) {
-                    this.handleUserLogout();
-                }
-            }, 2000);
-        }
-    }
-
-    /**
-     * Handle user login event
+     * Create a new user profile in Firestore
      * @param {Object} user - Firebase user object
+     * @param {Object} profileData - User profile data
+     * @returns {Promise<boolean>} Whether the operation succeeded
      */
-    async handleUserLogin(user) {
-        if (!user) return;
-        
-        this.currentUser = user;
-        
-        // Get user role from Firestore
+    static async createUserProfile(user, profileData) {
+        if (!user || !user.uid) {
+            console.error('Invalid user object provided');
+            return false;
+        }
+        console.log("createUserProfile received profileData:", JSON.stringify(profileData));
+  
         try {
-            await this.getUserRole(user.uid);
-            this.renderDropdown();
-        } catch (error) {
-            console.error('Error getting user role:', error);
-            // Fallback to default role
-            this.userRole = 'student';
-            this.renderDropdown();
-        }
-    }
-
-    /**
-     * Handle user logout event
-     */
-    handleUserLogout() {
-        this.currentUser = null;
-        this.userRole = 'student';
-        if (this.container) {
-            this.container.innerHTML = '';
-        }
-    }
-
-    /**
-     * Get user role from database
-     * @param {string} userId - User ID
-     */
-    async getUserRole(userId) {
-        try {
-            // Try to use UserService directly if imported
-            if (typeof UserService !== 'undefined' && UserService) {
-                const userData = await UserService.getUserData(this.currentUser);
-                if (userData) {
-                    this.userRole = userData.userRole || 'student';
-                    return;
-                }
-            }
+            // Ensure we have a fresh token before creating the profile
+            const token = await user.getIdToken(true);
+            console.log("Using fresh token for profile creation:", !!token);
             
-            // Try to use the global Auth.getUserData
-            if (window.Auth && typeof window.Auth.getUserData === 'function') {
-                const userData = await window.Auth.getUserData();
-                if (userData) {
-                    this.userRole = userData.userRole || 'student';
-                    return;
-                }
-            }
-            
-            // Try using Auth.UserService directly
-            if (window.Auth && window.Auth.UserService && typeof window.Auth.UserService.getUserData === 'function') {
-                const userData = await window.Auth.UserService.getUserData(this.currentUser);
-                if (userData) {
-                    this.userRole = userData.userRole || 'student';
-                    return;
-                }
-            }
-            
-            // If no user data found or the above methods failed, default to student role
-            console.warn('Could not retrieve user role, defaulting to student');
-            this.userRole = 'student';
-        } catch (error) {
-            console.error('Error fetching user role:', error);
-            this.userRole = 'student';
-        }
-    }
-
-    /**
-     * Render the dropdown UI
-     */
-    renderDropdown() {
-        if (!this.container || !this.currentUser) return;
-        
-        const displayName = this.currentUser.displayName || this.currentUser.email || 'User';
-        
-        // Create dropdown HTML with improved styling hooks
-        const dropdownHTML = `
-            <div class="user-dropdown">
-                <button class="user-dropdown-toggle">
-                    <i class="fas fa-user-circle"></i>
-                    <span class="username">${displayName}</span>
-                    <i class="fas fa-chevron-down"></i>
-                </button>
-                <div class="user-dropdown-menu">
-                    <a href="${this.userRole === 'admin' ? '/admin/dashboard.html' : '/admin/users.html'}" class="dashboard-link">
-                        <i class="fas ${this.userRole === 'admin' ? 'fa-tachometer-alt' : 'fa-user'}"></i> 
-                        ${this.userRole === 'admin' ? 'Admin Dashboard' : 'My Profile'}
-                    </a>
-                    <a href="#" class="logout-link">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
-                </div>
-            </div>
-        `;
-        
-        // Check if dropdown already exists to avoid unnecessary DOM updates
-        if (this.container.querySelector('.user-dropdown')) {
-            const nameElement = this.container.querySelector('.username');
-            if (nameElement && nameElement.textContent !== displayName) {
-                nameElement.textContent = displayName;
-            }
-        } else {
-            // Set innerHTML
-            this.container.innerHTML = dropdownHTML;
-            
-            // Add event listeners
-            this.addEventListeners();
-            
-            // Add default styles if not already present
-            this.addDropdownStyles();
-        }
-    }
-
-    /**
-     * Add event listeners to dropdown elements
-     */
-    addEventListeners() {
-        const toggleButton = this.container.querySelector('.user-dropdown-toggle');
-        const logoutLink = this.container.querySelector('.logout-link');
-        
-        if (toggleButton) {
-            toggleButton.addEventListener('click', (event) => {
-                event.preventDefault();
-                this.toggleDropdown();
+            // Use retry mechanism for Firestore operations
+            const { success, error } = await ErrorHandler.retryOperation(async () => {
+                const userDocRef = doc(db, "users", user.uid);
+                await setDoc(userDocRef, {
+                    ...profileData,
+                    email: user.email, // Ensure email is stored for security rule matching
+                    uid: user.uid,     // Store UID explicitly for double verification
+                    createdAt: new Date().toISOString(),
+                    lastUpdated: new Date().toISOString()
+                });
+                return true;
             });
-        }
-        
-        if (logoutLink) {
-            logoutLink.addEventListener('click', (event) => {
-                event.preventDefault();
-                this.handleLogout();
-            });
-        }
-    }
-
-    /**
-     * Add default dropdown styles if not present in CSS
-     */
-    addDropdownStyles() {
-        // Check if styles are already added
-        if (document.getElementById('user-dropdown-styles')) {
-            return;
-        }
-        
-        const styleEl = document.createElement('style');
-        styleEl.id = 'user-dropdown-styles';
-        styleEl.textContent = `
-            .user-dropdown {
-                position: relative;
-                display: inline-block;
-            }
             
-            .user-dropdown-toggle {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                padding: 8px 12px;
-                background-color: transparent;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                transition: background-color 0.2s;
-                color: var(--text-color, #333);
+            if (success) {
+                console.log("User profile created successfully for:", user.uid);
+                // Cache user data
+                this.userData = {
+                    ...profileData,
+                    email: user.email,
+                    uid: user.uid,
+                    createdAt: new Date().toISOString(),
+                    lastUpdated: new Date().toISOString()
+                };
+                return true;
+            } else {
+                console.error("Failed to create user profile:", error);
+                
+                // Store profile data in localStorage as fallback
+                this.storeProfileInLocalStorage(user.uid, profileData);
+                
+                return false;
             }
-            
-            .user-dropdown-toggle:hover {
-                background-color: rgba(0, 0, 0, 0.05);
-            }
-            
-            .user-dropdown-menu {
-                position: absolute;
-                right: 0;
-                top: 100%;
-                margin-top: 4px;
-                min-width: 200px;
-                background-color: white;
-                border-radius: 4px;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-                overflow: hidden;
-                z-index: 1000;
-                display: none;
-            }
-            
-            .user-dropdown-menu.active {
-                display: block;
-                animation: dropdownFade 0.2s ease-out;
-            }
-            
-            .user-dropdown-menu a {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                padding: 10px 15px;
-                color: var(--text-color, #333);
-                text-decoration: none;
-                transition: background-color 0.2s;
-            }
-            
-            .user-dropdown-menu a:hover {
-                background-color: rgba(0, 0, 0, 0.05);
-            }
-            
-            .logout-link {
-                border-top: 1px solid rgba(0, 0, 0, 0.1);
-            }
-            
-            @keyframes dropdownFade {
-                from { opacity: 0; transform: translateY(-10px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
-        `;
-        
-        document.head.appendChild(styleEl);
-    }
-
-    /**
-     * Toggle dropdown open/closed state
-     */
-    toggleDropdown() {
-        const dropdownMenu = this.container.querySelector('.user-dropdown-menu');
-        if (dropdownMenu) {
-            this.isOpen = !this.isOpen;
-            dropdownMenu.classList.toggle('active', this.isOpen);
-        }
-    }
-
-    /**
-     * Close dropdown
-     */
-    closeDropdown() {
-        const dropdownMenu = this.container.querySelector('.user-dropdown-menu');
-        if (dropdownMenu) {
-            this.isOpen = false;
-            dropdownMenu.classList.remove('active');
-        }
-    }
-
-    /**
-     * Handle logout action
-     */
-    async handleLogout() {
-        try {
-            // Try to use Auth module first
-            if (window.Auth && typeof window.Auth.logout === 'function') {
-                await window.Auth.logout();
-            } else if (typeof AuthService !== 'undefined' && AuthService && typeof AuthService.logout === 'function') {
-                await AuthService.logout();
-            } else if (window.firebase && window.firebase.auth) {
-                // Fallback to direct Firebase auth
-                await window.firebase.auth().signOut();
-            }
-            
-            // Show success message
-            if (window.showToast) {
-                window.showToast('Logged out successfully', 'success');
-            }
-            
-            // Optionally redirect to home page
-            window.location.href = '/';
         } catch (error) {
-            console.error('Error during logout:', error);
-            if (window.showToast) {
-                window.showToast('Failed to log out. Please try again.', 'error');
-            }
+            console.error("Error creating user profile:", error);
+            
+            // Store profile data in localStorage as fallback
+            this.storeProfileInLocalStorage(user.uid, profileData);
+            
+            return false;
         }
     }
     
     /**
-     * Clean up resources when the module is no longer needed
+     * Store profile data temporarily in localStorage as fallback
+     * @param {string} uid - User ID
+     * @param {Object} profileData - User profile data
      */
-    cleanup() {
-        if (this.authCheckInterval) {
-            clearInterval(this.authCheckInterval);
+    static storeProfileInLocalStorage(uid, profileData) {
+        try {
+            const key = `pending_profile_${uid}`;
+            localStorage.setItem(key, JSON.stringify({
+                ...profileData,
+                createdAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                pendingSince: new Date().toISOString()
+            }));
+            console.log("Stored profile data in localStorage for later sync");
+        } catch (e) {
+            console.error("Failed to store profile in localStorage:", e);
+        }
+    }
+    
+    /**
+     * Get pending profile data from localStorage
+     * @param {string} uid - User ID
+     * @returns {Object|null} Pending profile data or null
+     */
+    static getPendingProfileFromLocalStorage(uid) {
+        try {
+            const key = `pending_profile_${uid}`;
+            const data = localStorage.getItem(key);
+            if (data) {
+                return JSON.parse(data);
+            }
+            return null;
+        } catch (e) {
+            console.error("Failed to get pending profile from localStorage:", e);
+            return null;
+        }
+    }
+    
+    /**
+     * Clear pending profile data from localStorage
+     * @param {string} uid - User ID
+     */
+    static clearPendingProfileFromLocalStorage(uid) {
+        try {
+            const key = `pending_profile_${uid}`;
+            localStorage.removeItem(key);
+        } catch (e) {
+            console.error("Failed to clear pending profile from localStorage:", e);
+        }
+    }
+    
+    /**
+     * Attempt to sync any pending profile data to Firestore
+     * @param {Object} user - Firebase user object
+     * @returns {Promise<boolean>} Whether sync was successful
+     */
+    static async syncPendingProfile(user) {
+        if (!user || !user.uid) return false;
+        
+        const pendingData = this.getPendingProfileFromLocalStorage(user.uid);
+        if (!pendingData) return false;
+        
+        try {
+            console.log("Attempting to sync pending profile data to Firestore");
+            
+            // Check if user already has a profile
+            const userDoc = await this.fetchUserProfile(user);
+            
+            if (userDoc) {
+                // User already has a profile, just update it with pending data
+                await this.updateUserProfile(user, pendingData);
+            } else {
+                // Create new profile with pending data
+                await this.createUserProfile(user, pendingData);
+            }
+            
+            // Clear pending data if successful
+            this.clearPendingProfileFromLocalStorage(user.uid);
+            
+            console.log("Successfully synced pending profile data");
+            return true;
+        } catch (error) {
+            console.error("Failed to sync pending profile data:", error);
+            return false;
+        }
+    }
+    
+    /**
+     * Try to create a test document in system_test collection
+     * @param {Object} user - Firebase user object
+     * @returns {Promise<boolean>} Whether the operation succeeded
+     */
+    static async testFirestoreConnection(user) {
+        if (!user || !user.uid) {
+            console.error("Invalid user for connection test");
+            return false;
+        }
+        
+        try {
+            console.log("=== TESTING FIRESTORE CONNECTION ===");
+            
+            // Get a fresh token
+            const token = await user.getIdToken(true);
+            console.log("Test using fresh token:", !!token);
+            
+            // Just try to read the user's own profile - this should be allowed with updated rules
+            const userDocRef = doc(db, "users", user.uid);
+            try {
+                const docSnap = await getDoc(userDocRef);
+                console.log("User profile read test:", docSnap.exists() ? "Profile exists" : "Profile doesn't exist yet");
+                return true;
+            } catch (readError) {
+                console.log("Profile read test failed:", readError);
+                // Fall through to system_test collection test
+            }
+            
+            // Try system_test collection as a backup
+            try {
+                const testDocId = `test_${user.uid.substring(0, 5)}_${Date.now()}`;
+                console.log("Writing test doc with ID:", testDocId);
+                
+                const testDocRef = doc(db, "system_test", testDocId);
+                await setDoc(testDocRef, {
+                    timestamp: new Date().toISOString(),
+                    uid: user.uid,
+                    test: "Connection test"
+                });
+                
+                console.log("Test write successful");
+                return true;
+            } catch (writeError) {
+                console.error("Write test failed:", writeError);
+                
+                // If permission denied, assume we can connect but don't have permission
+                if (writeError.code === "permission-denied") {
+                    console.log("Permission denied, but connection is working");
+                    return true;
+                }
+                
+                throw writeError; // Rethrow other errors
+            }
+        } catch (error) {
+            console.error("=== FIRESTORE CONNECTION TEST FAILED ===");
+            console.error("Error:", error);
+            console.error("Error code:", error.code);
+            console.error("Error message:", error.message);
+            
+            // For non-admin users, proceed anyway
+            console.log("Assuming connection is OK for non-admin users");
+            return true;
+        }
+    }
+    
+    /**
+     * Create default profile for a user
+     * @param {Object} user - Firebase user object
+     * @returns {Object} Default profile object
+     */
+    static createDefaultProfile(user) {
+        return {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName || user.email.split('@')[0],
+            userRole: 'student', // Default role
+            createdAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+        };
+    }
+    
+    /**
+     * Fetch user profile from Firestore
+     * @param {Object} user - Firebase user object
+     * @returns {Promise<Object|null>} User profile data or null if not found
+     */
+    static async fetchUserProfile(user) {
+        if (!user || !user.uid) {
+            console.error('Invalid user object provided');
+            return null;
+        }
+        
+        if (this.fetchInProgress) {
+            console.log("Profile fetch already in progress, waiting...");
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return this.userData; // Return cached data if available
+        }
+        
+        this.fetchInProgress = true;
+        
+        try {
+            console.log("Attempting to fetch profile for user:", user.uid);
+            
+            // First test the connection to isolate permission vs. connection issues
+            const connectionTest = await this.testFirestoreConnection(user);
+            if (!connectionTest) {
+                console.error("Firestore connection test failed, using local profile");
+                this.fetchInProgress = false;
+                
+                // Create default profile when connection fails
+                const defaultProfile = this.createDefaultProfile(user);
+                this.userData = defaultProfile;
+                this.storeProfileInLocalStorage(user.uid, defaultProfile);
+                return defaultProfile;
+            }
+            
+            // Always get a fresh token directly from user object
+            console.log("Getting fresh token for profile fetch");
+            const freshToken = await user.getIdToken(true);
+            if (freshToken) {
+                localStorage.setItem('authToken', freshToken);
+                console.log("Fresh token stored for profile fetch, length:", freshToken.length);
+            }
+            
+            // Add a delay to ensure token propagation
+            console.log("Waiting for token propagation...");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            const userDocRef = doc(db, "users", user.uid);
+            console.log("Fetching document at path:", `users/${user.uid}`);
+            
+            // Try to read the profile first
+            let userDoc = null;
+            let profileExists = false;
+            
+            try {
+                userDoc = await getDoc(userDocRef);
+                profileExists = userDoc.exists();
+                console.log("Document fetch result:", profileExists ? "Document exists" : "Document doesn't exist");
+            } catch (readError) {
+                console.error("Could not read user profile:", readError);
+                profileExists = false;
+            }
+            
+            // If profile exists, return the data
+            if (profileExists && userDoc) {
+                const userData = userDoc.data();
+                console.log("User profile data loaded:", userData);
+                // Cache user data
+                this.userData = userData;
+                this.lastFetchTimestamp = Date.now();
+                this._retryCount = 0; // Reset retry counter on success
+                this.fetchInProgress = false;
+                return userData;
+            }
+            
+            // Profile doesn't exist, create new one
+            console.log("No user profile found. Creating default profile.");
+            
+            // Check for pending data in localStorage first
+            const pendingData = this.getPendingProfileFromLocalStorage(user.uid);
+            if (pendingData) {
+                console.log("Found pending profile data in localStorage");
+                
+                try {
+                    // Try to create profile with pending data
+                    const basicProfile = {
+                        ...pendingData,
+                        email: user.email,
+                        displayName: user.displayName || user.email.split('@')[0],
+                        userRole: 'student' // Default role for safety
+                    };
+                    
+                    await this.createUserProfile(user, basicProfile);
+                    this.clearPendingProfileFromLocalStorage(user.uid);
+                    this.userData = basicProfile;
+                    this.fetchInProgress = false;
+                    return basicProfile;
+                } catch (createError) {
+                    console.error("Error creating profile from pending data:", createError);
+                    // Continue with default profile creation
+                }
+            }
+            
+            // Create new default profile
+            const defaultProfile = this.createDefaultProfile(user);
+            
+            try {
+                await this.createUserProfile(user, defaultProfile);
+                this.userData = defaultProfile;
+                this.fetchInProgress = false;
+                return defaultProfile;
+            } catch (createError) {
+                console.error("Error creating default profile:", createError);
+                this.storeProfileInLocalStorage(user.uid, defaultProfile);
+                this.userData = defaultProfile;
+                this.fetchInProgress = false;
+                return defaultProfile;
+            }
+        } catch (error) {
+            console.error("Detailed fetch error:", error);
+            console.error("Error code:", error.code);
+            console.error("Error message:", error.message);
+            
+            // Always ensure we have a default profile, even on errors
+            const defaultProfile = this.createDefaultProfile(user);
+            this.userData = defaultProfile;
+            this.storeProfileInLocalStorage(user.uid, defaultProfile);
+            
+            this.fetchInProgress = false;
+            return defaultProfile;
+        }
+    }
+    
+    /**
+     * Update user profile data in Firestore
+     * @param {Object} user - Firebase user object
+     * @param {Object} updateData - Data to update
+     * @returns {Promise<boolean>} Whether the operation succeeded
+     */
+    static async updateUserProfile(user, updateData) {
+        if (!user || !user.uid) {
+            console.error('Invalid user object provided');
+            return false;
+        }
+        
+        try {
+            // Ensure we have a fresh token
+            await user.getIdToken(true);
+            
+            const userDocRef = doc(db, "users", user.uid);
+            
+            // First check if the user profile exists
+            let profileExists = false;
+            try {
+                const userDoc = await getDoc(userDocRef);
+                profileExists = userDoc.exists();
+            } catch (readError) {
+                console.error("Error checking if profile exists:", readError);
+                profileExists = false;
+            }
+            
+            if (!profileExists) {
+                // If no profile exists, create one
+                return await this.createUserProfile(user, {
+                    ...this.createDefaultProfile(user),
+                    ...updateData
+                });
+            }
+            
+            // Update the existing profile
+            try {
+                await updateDoc(userDocRef, {
+                    ...updateData,
+                    lastUpdated: new Date().toISOString()
+                });
+                
+                console.log("User profile updated successfully");
+                
+                // Update cached user data
+                if (this.userData) {
+                    this.userData = { ...this.userData, ...updateData };
+                }
+                
+                // Clear any pending data as we've successfully updated
+                this.clearPendingProfileFromLocalStorage(user.uid);
+                
+                return true;
+            } catch (updateError) {
+                console.error("Error updating profile:", updateError);
+                
+                // Store update data in localStorage for later sync
+                const pendingData = this.getPendingProfileFromLocalStorage(user.uid) || {};
+                this.storeProfileInLocalStorage(user.uid, {
+                    ...pendingData,
+                    ...updateData
+                });
+                
+                // Still update the cached data for client-side use
+                if (this.userData) {
+                    this.userData = { ...this.userData, ...updateData };
+                }
+                
+                return false;
+            }
+        } catch (error) {
+            console.error("Error updating user profile:", error);
+            
+            // Store update data in localStorage for later sync
+            const pendingData = this.getPendingProfileFromLocalStorage(user.uid) || {};
+            this.storeProfileInLocalStorage(user.uid, {
+                ...pendingData,
+                ...updateData
+            });
+            
+            // Still update the cached data for client-side use
+            if (this.userData) {
+                this.userData = { ...this.userData, ...updateData };
+            }
+            
+            return false;
+        }
+    }
+    
+    /**
+     * Get cached user data or fetch from Firestore if not available
+     * @param {Object} user - Firebase user object
+     * @returns {Promise<Object|null>} User profile data or null
+     */
+    static async getUserData(user) {
+        if (!user || !user.uid) {
+            console.error('Invalid user object for getUserData');
+            return null;
+        }
+        
+        // Return cached data if available and not too old (within 5 minutes)
+        const now = Date.now();
+        if (this.userData && this.lastFetchTimestamp && now - this.lastFetchTimestamp < 300000) {
+            return this.userData;
+        }
+        
+        // If no cached data or it's too old, try to fetch from Firestore
+        try {
+            return await this.fetchUserProfile(user);
+        } catch (error) {
+            console.error("Error fetching user data:", error);
+            
+            // If fetching fails, check for localStorage data
+            const pendingData = this.getPendingProfileFromLocalStorage(user.uid);
+            if (pendingData) {
+                return pendingData;
+            }
+            
+            // As a last resort, create and return a default profile
+            const defaultProfile = this.createDefaultProfile(user);
+            this.userData = defaultProfile;
+            return defaultProfile;
+        }
+    }
+    
+    /**
+     * Find users by email
+     * @param {string} email - Email to search for
+     * @returns {Promise<Object|null>} User data or null if not found
+     */
+    static async findUserByEmail(email) {
+        if (!email) return null;
+        
+        try {
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("email", "==", email.trim()));
+            const querySnapshot = await getDocs(q);
+            
+            if (querySnapshot.empty) {
+                return null;
+            }
+            
+            // Return the first matching user
+            return {
+                id: querySnapshot.docs[0].id,
+                ...querySnapshot.docs[0].data()
+            };
+        } catch (error) {
+            console.error("Error finding user by email:", error);
+            return null;
+        }
+    }
+    
+    /**
+     * Check if user has admin role
+     * @param {Object} user - Firebase user object
+     * @returns {Promise<boolean>} Whether user has admin role
+     */
+    static async isUserAdmin(user) {
+        if (!user || !user.uid) return false;
+        
+        try {
+            const userData = await this.getUserData(user);
+            return userData && userData.userRole === 'admin';
+        } catch (error) {
+            console.error("Error checking admin status:", error);
+            return false;
         }
     }
 }
 
-// Create and export singleton instance
-const userDropdown = new UserDropdown();
-export default userDropdown;
-
-// Auto-initialize on page load for convenience
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => userDropdown.init(), 500); // Slight delay to ensure DOM is ready
-});
-
-// Expose to global scope for debugging and manual initialization
-window.userDropdown = userDropdown;
+export default UserService;
