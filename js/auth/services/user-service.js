@@ -20,6 +20,8 @@ class UserService {
     static userData = null;
     static fetchInProgress = false;
     static lastFetchTimestamp = null;
+    static _retryCount = 0;
+    static MAX_RETRIES = 3;
     
     /**
      * Create a new user profile in Firestore
@@ -33,8 +35,6 @@ class UserService {
             return false;
         }
         console.log("createUserProfile received profileData:", JSON.stringify(profileData));
-        console.log("examData in profileData:", JSON.stringify(profileData.examData));
-        console.log("Number of exam entries in profile:", profileData.examData ? Object.keys(profileData.examData).length : 0);
   
         try {
             // Use retry mechanism for Firestore operations
@@ -42,6 +42,8 @@ class UserService {
                 const userDocRef = doc(db, "users", user.uid);
                 await setDoc(userDocRef, {
                     ...profileData,
+                    email: user.email, // Ensure email is stored for security rule matching
+                    uid: user.uid,     // Store UID explicitly for double verification
                     createdAt: new Date().toISOString(),
                     lastUpdated: new Date().toISOString()
                 });
@@ -164,58 +166,158 @@ class UserService {
      * @param {Object} user - Firebase user object
      * @returns {Promise<Object|null>} User profile data or null if not found
      */
-static async fetchUserProfile(user) {
-    if (!user || !user.uid) {
-        console.error('Invalid user object provided');
-        return null;
-    }
-    
-    console.log("Attempting to fetch profile for user:", user.uid);
-    console.log("Current auth token state:", !!TokenManager.getCurrentToken());
-    
-    try {
-        const userDocRef = doc(db, "users", user.uid);
-        console.log("Fetching document at path:", `users/${user.uid}`);
-        const userDoc = await getDoc(userDocRef);
+    static async fetchUserProfile(user) {
+        if (!user || !user.uid) {
+            console.error('Invalid user object provided');
+            return null;
+        }
         
-        console.log("Document fetch result:", userDoc.exists() ? "Document exists" : "Document doesn't exist");
+        if (this.fetchInProgress) {
+            console.log("Profile fetch already in progress, waiting...");
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return this.userData; // Return cached data if available
+        }
         
-        if (userDoc.exists()) {
-            const userData = userDoc.data();
-            console.log("User profile data loaded:", userData);
-            // Cache user data
-            this.userData = userData;
-            return userData;
-        } else {
-            console.log("No user profile found");
+        this.fetchInProgress = true;
+        
+        try {
+            console.log("Attempting to fetch profile for user:", user.uid);
             
-            // Check if we have pending profile data in localStorage
+            // Ensure we have a valid token
+            const token = TokenManager.getCurrentToken();
+            console.log("Current auth token state:", !!token);
+            
+            if (!token) {
+                console.log("No token available, requesting new token");
+                try {
+                    // Force a token refresh
+                    const newToken = await user.getIdToken(true);
+                    if (newToken) {
+                        localStorage.setItem('authToken', newToken);
+                        console.log("New token obtained and stored");
+                    } else {
+                        throw new Error("Failed to obtain new token");
+                    }
+                } catch (tokenError) {
+                    console.error("Token refresh failed:", tokenError);
+                    
+                    // Check if we have pending profile data in localStorage
+                    const pendingData = this.getPendingProfileFromLocalStorage(user.uid);
+                    if (pendingData) {
+                        console.log("Using pending profile data from localStorage due to token error");
+                        this.userData = pendingData;
+                        this.fetchInProgress = false;
+                        return pendingData;
+                    }
+                    
+                    this.fetchInProgress = false;
+                    return null;
+                }
+            }
+            
+            const userDocRef = doc(db, "users", user.uid);
+            console.log("Fetching document at path:", `users/${user.uid}`);
+            
+            // Add a small delay to ensure token propagation
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            const userDoc = await getDoc(userDocRef);
+            
+            console.log("Document fetch result:", userDoc.exists() ? "Document exists" : "Document doesn't exist");
+            
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                console.log("User profile data loaded:", userData);
+                // Cache user data
+                this.userData = userData;
+                this.lastFetchTimestamp = Date.now();
+                this._retryCount = 0; // Reset retry counter on success
+                this.fetchInProgress = false;
+                return userData;
+            } else {
+                console.log("No user profile found. Creating default profile.");
+                
+                // Check if we have pending profile data in localStorage
+                const pendingData = this.getPendingProfileFromLocalStorage(user.uid);
+                if (pendingData) {
+                    console.log("Found pending profile data in localStorage");
+                    this.userData = pendingData;
+                    
+                    // Try to create the profile with the pending data
+                    try {
+                        await this.createUserProfile(user, {
+                            ...pendingData,
+                            email: user.email,
+                            displayName: user.displayName || user.email.split('@')[0],
+                            userRole: 'user' // Default role
+                        });
+                        this.clearPendingProfileFromLocalStorage(user.uid);
+                    } catch (createError) {
+                        console.error("Error creating profile from pending data:", createError);
+                    }
+                    
+                    this.fetchInProgress = false;
+                    return pendingData;
+                } else {
+                    // No profile exists, create a new one with basic data
+                    const basicProfile = {
+                        email: user.email,
+                        displayName: user.displayName || user.email.split('@')[0],
+                        userRole: 'user', // Default role
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    try {
+                        await this.createUserProfile(user, basicProfile);
+                        this.userData = basicProfile;
+                        this.fetchInProgress = false;
+                        return basicProfile;
+                    } catch (createError) {
+                        console.error("Error creating basic profile:", createError);
+                        this.storeProfileInLocalStorage(user.uid, basicProfile);
+                        this.fetchInProgress = false;
+                        return basicProfile;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Detailed fetch error:", error);
+            console.error("Error code:", error.code);
+            console.error("Error message:", error.message);
+            
+            this._retryCount++;
+            
+            // Implement exponential backoff for retries
+            if (this._retryCount <= this.MAX_RETRIES) {
+                console.log(`Retrying fetch (attempt ${this._retryCount} of ${this.MAX_RETRIES})...`);
+                this.fetchInProgress = false;
+                
+                // Wait with exponential backoff (1s, 2s, 4s...)
+                const backoffTime = Math.pow(2, this._retryCount - 1) * 1000;
+                await new Promise(resolve => setTimeout(resolve, backoffTime));
+                
+                // Recursive retry with fresh token
+                try {
+                    await user.getIdToken(true); // Force token refresh
+                    return await this.fetchUserProfile(user);
+                } catch (retryError) {
+                    console.error("Retry failed:", retryError);
+                }
+            }
+            
+            // Fall back to localStorage if Firestore fails after all retries
             const pendingData = this.getPendingProfileFromLocalStorage(user.uid);
             if (pendingData) {
-                console.log("Found pending profile data in localStorage");
+                console.log("Using pending profile data from localStorage due to Firestore error");
                 this.userData = pendingData;
+                this.fetchInProgress = false;
                 return pendingData;
             }
             
+            this.fetchInProgress = false;
             return null;
         }
-    } catch (error) {
-        console.error("Detailed fetch error:", error);
-        // Include more error properties
-        console.error("Error code:", error.code);
-        console.error("Error message:", error.message);
-        
-        // Fall back to localStorage if Firestore fails
-        const pendingData = this.getPendingProfileFromLocalStorage(user.uid);
-        if (pendingData) {
-            console.log("Using pending profile data from localStorage due to Firestore error");
-            this.userData = pendingData;
-            return pendingData;
-        }
-        
-        return null;
     }
-}
     
     /**
      * Update user profile data in Firestore
