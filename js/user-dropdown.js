@@ -43,23 +43,14 @@ class UserDropdown {
      */
     setupAuthListener() {
         // Use AuthService if available
-        if (window.Auth && window.Auth.AuthService) {
+        if (window.Auth && window.Auth.isLoggedIn) {
             // Check if already logged in
-            if (window.Auth.isLoggedIn) {
-                const user = window.Auth.user;
-                this.handleUserLogin(user);
-            }
-            
-            // Listen for auth state changes
-            window.firebaseAuth.onAuthStateChanged((user) => {
-                if (user) {
-                    this.handleUserLogin(user);
-                } else {
-                    this.handleUserLogout();
-                }
-            });
-        } else if (window.firebaseAuth) {
-            // Fallback to direct Firebase auth
+            const user = window.Auth.user;
+            this.handleUserLogin(user);
+        }
+        
+        // Listen for auth state changes using the available auth service
+        if (window.firebaseAuth) {
             window.firebaseAuth.onAuthStateChanged((user) => {
                 if (user) {
                     this.handleUserLogin(user);
@@ -68,7 +59,7 @@ class UserDropdown {
                 }
             });
         } else {
-            console.error('Authentication service not available');
+            console.warn('Firebase auth not available, dropdown may not function correctly');
         }
     }
 
@@ -111,20 +102,26 @@ class UserDropdown {
     async getUserRole(userId) {
         try {
             // Try to use the UserService if available
-            if (window.Auth && window.Auth.UserService) {
-                const userData = await window.Auth.UserService.getUserData(this.currentUser);
-                this.userRole = userData?.role || 'student';
-            } else {
-                // Fallback to direct Firestore access
-                const db = firebase.firestore();
-                const userDoc = await db.collection('users').doc(userId).get();
-                
-                if (userDoc.exists) {
-                    this.userRole = userDoc.data()?.role || 'student';
-                } else {
-                    this.userRole = 'student';
+            if (window.Auth && typeof window.Auth.getUserData === 'function') {
+                const userData = await window.Auth.getUserData();
+                if (userData) {
+                    this.userRole = userData.role || 'student';
+                    return;
                 }
             }
+            
+            // Second attempt: Try using Auth.UserService directly
+            if (window.Auth && window.Auth.UserService && typeof window.Auth.UserService.getUserData === 'function') {
+                const userData = await window.Auth.UserService.getUserData(this.currentUser);
+                if (userData) {
+                    this.userRole = userData.role || 'student';
+                    return;
+                }
+            }
+            
+            // If no user data found or the above methods failed, default to student role
+            console.warn('Could not retrieve user role, defaulting to student');
+            this.userRole = 'student';
         } catch (error) {
             console.error('Error fetching user role:', error);
             this.userRole = 'student';
@@ -237,5 +234,3 @@ class UserDropdown {
 // Create and export singleton instance
 const userDropdown = new UserDropdown();
 export default userDropdown;
-
-// Remove self-initialization - will be handled by main.js
