@@ -20,49 +20,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Initialize the enhanced auth service
+        let authInitPromise;
+        
         if (typeof Auth.initExtended === 'function') {
-            Auth.initExtended() // Use the enhanced version with additional user data collection
-                .then(() => {
-                    // Initialize user dropdown AFTER components are loaded and auth is initialized
-                    // Add a small delay to ensure DOM is fully updated
-                    setTimeout(() => {
-                        if (document.getElementById('user-info')) {
-                            initializeUserDropdown();
-                        } else {
-                            console.error('User info container still not found after loading components');
-                        }
-                    }, 300);
-                });
+            authInitPromise = Auth.initExtended(); // Use the enhanced version with additional user data collection
         } else if (typeof Auth.init === 'function') {
-            Auth.init() // Fallback to standard initialization
-                .then(() => {
-                    // Initialize user dropdown AFTER components are loaded and auth is initialized
-                    setTimeout(() => {
-                        if (document.getElementById('user-info')) {
-                            initializeUserDropdown();
-                        } else {
-                            console.error('User info container still not found after loading components');
-                        }
-                    }, 300);
-                });
+            authInitPromise = Auth.init(); // Fallback to standard initialization
             console.warn('Enhanced auth features not available');
         } else {
             console.error('Auth.init is not a function');
-            // Still try to initialize the dropdown after a delay
+            authInitPromise = Promise.resolve(); // Empty promise to allow chain to continue
+        }
+        
+        // Continue initialization flow after auth init attempt
+        authInitPromise.then(() => {
+            // Add a small delay to ensure DOM is fully updated
             setTimeout(() => {
                 if (document.getElementById('user-info')) {
-                    initializeUserDropdown();
+                    // Don't initialize dropdown here - let Auth handle the basic UI
+                    setupAuthChangeListener();
                 } else {
                     console.error('User info container still not found after loading components');
                 }
             }, 300);
-        }
+        }).catch(error => {
+            console.error('Error initializing auth:', error);
+        });
     }).catch(error => {
         console.error('Error loading components:', error);
     });
 });
 
-// Function to initialize user dropdown using UserService
+// New function to set up auth state change listener
+function setupAuthChangeListener() {
+    // Listen for authentication state changes
+    firebase.auth().onAuthStateChanged(user => {
+        if (user) {
+            console.log('User signed in, waiting for profile data...');
+            // Auth service will handle the initial UI update
+            // We just need to ensure we don't conflict with it
+        } else {
+            console.log('User signed out');
+            // Auth service will handle the UI update for logout
+        }
+    });
+}
+
+// Function to initialize user dropdown using UserService - now only used for manual refresh
 function initializeUserDropdown() {
     // Get current user from Auth
     const currentUser = Auth.user; // Using Auth.user getter property
@@ -81,18 +85,12 @@ function initializeUserDropdown() {
     }
 }
 
-// Function to update the UI with user data
+// Function to update the UI with user data - now only used for manual refresh
 function updateUserInfoUI(userData) {
     const userInfoElement = document.getElementById('user-info');
     if (!userInfoElement) return;
     
-    // Check if dropdown already exists
-    if (userInfoElement.querySelector('.user-dropdown')) {
-        console.log('User dropdown already initialized');
-        return;
-    }
-    
-    // Create user dropdown UI similar to what AuthService.updateUI() does
+    // Create user dropdown UI
     userInfoElement.innerHTML = `
         <div class="user-dropdown">
             <button class="user-dropdown-toggle">
@@ -101,10 +99,7 @@ function updateUserInfoUI(userData) {
                 <i class="fas fa-chevron-down"></i>
             </button>
             <div class="user-dropdown-menu">
-                <a href="${userData.userRole === 'admin' ? '/admin/dashboard.html' : '/admin/users.html'}" class="dashboard-link">
-                    <i class="fas ${userData.userRole === 'admin' ? 'fa-tachometer-alt' : 'fa-user'}"></i> 
-                    ${userData.userRole === 'admin' ? 'Admin Dashboard' : 'My Profile'}
-                </a>
+                ${getRoleSpecificMenuItems(userData.userRole)}
                 <a href="#" class="logout-link" onclick="Auth.logout(); return false;">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a>
@@ -133,6 +128,36 @@ function updateUserInfoUI(userData) {
             }
         }
     });
+}
+
+// Get role-specific menu items - mirrors Auth service functionality
+function getRoleSpecificMenuItems(userRole) {
+    switch (userRole) {
+        case 'admin':
+            return `
+                <a href="/admin/dashboard.html" class="dashboard-link">
+                    <i class="fas fa-tachometer-alt"></i> Admin Dashboard
+                </a>
+                <a href="/admin/users.html" class="users-link">
+                    <i class="fas fa-users"></i> Manage Users
+                </a>`;
+        case 'teacher':
+            return `
+                <a href="/teacher/dashboard.html" class="dashboard-link">
+                    <i class="fas fa-chalkboard-teacher"></i> Teacher Dashboard
+                </a>
+                <a href="/teacher/classes.html" class="classes-link">
+                    <i class="fas fa-book"></i> My Classes
+                </a>`;
+        default: // student or any other role
+            return `
+                <a href="/profile.html" class="profile-link">
+                    <i class="fas fa-user"></i> My Profile
+                </a>
+                <a href="/courses.html" class="courses-link">
+                    <i class="fas fa-graduation-cap"></i> My Courses
+                </a>`;
+    }
 }
 
 // Function to load components
@@ -165,5 +190,13 @@ function showToast(message, type = 'info') {
     }, 100);
 }
 
-// Expose showToast globally
+// Manual refresh function that can be called when needed
+function refreshUserUI() {
+    if (Auth.user) {
+        initializeUserDropdown();
+    }
+}
+
+// Expose functions globally
 window.showToast = showToast;
+window.refreshUserUI = refreshUserUI;
