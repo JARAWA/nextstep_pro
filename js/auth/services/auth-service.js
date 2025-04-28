@@ -24,6 +24,7 @@ class AuthService {
     static user = null;
     static authUnsubscribe = null;
     static userProfileFetched = false;
+    static userRole = 'student'; // Default role
     
     // Initialize Authentication Service
     static async init() {
@@ -67,7 +68,7 @@ class AuthService {
                 this.isLoggedIn = true;
                 
                 try {
-                    // Get token first and make sure it's valid
+                    // First phase: Just handle basic authentication
                     console.log("Getting Firebase token for user:", user.uid);
                     const token = await TokenManager.getFirebaseToken(user);
                     
@@ -76,43 +77,14 @@ class AuthService {
                         localStorage.setItem('authToken', token);
                         TokenManager.setupTokenRefresh(user);
                         
-                        // Add a longer delay to ensure the token is fully processed
-                        // Firebase sometimes needs additional time to propagate auth state
-                        console.log("Waiting for auth state to fully propagate...");
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                        
-                        // Now try to fetch the profile
-                        try {
-                            console.log("Token valid before profile fetch:", !!TokenManager.getCurrentToken());
-                            const userData = await UserService.fetchUserProfile(user);
-                            
-                            if (userData) {
-                                console.log("User profile fetched successfully:", userData);
-                                if (userData.userRole) {
-                                    this.userRole = userData.userRole;
-                                    console.log("User role set to:", this.userRole);
-                                }
-                            } else {
-                                console.warn("No user profile data was returned");
-                            }
-                        } catch (profileError) {
-                            console.warn('Failed to fetch user profile, attempting retry with fresh token', profileError);
-                            
-                            // Try one more time with a fresh token
-                            try {
-                                const freshToken = await user.getIdToken(true); // Force token refresh
-                                localStorage.setItem('authToken', freshToken);
-                                console.log("Retrying profile fetch with fresh token");
-                                
-                                await new Promise(resolve => setTimeout(resolve, 1000));
-                                await UserService.fetchUserProfile(user);
-                            } catch (retryError) {
-                                console.error("Profile fetch retry failed:", retryError);
-                            }
-                        }
-                        
-                        this.updateUI();
+                        // Update UI with basic authenticated state
+                        // This ensures users can access basic functionality immediately
+                        this.updateBasicUI();
                         this.enableLoginRequiredFeatures();
+                        
+                        // Second phase: Fetch profile and set up role-specific UI asynchronously
+                        // This prevents blocking the auth flow while fetching profile data
+                        this.getUserProfileAndSetupUI(user);
                         
                         if (window.Modal && typeof window.Modal.hide === 'function') {
                             window.Modal.hide();
@@ -134,12 +106,109 @@ class AuthService {
             } else {
                 this.user = null;
                 this.isLoggedIn = false;
+                this.userRole = 'student'; // Reset to default
                 TokenManager.clearTokenData();
                 
                 this.updateUI();
                 this.disableLoginRequiredFeatures();
             }
         });
+    }
+    
+    // New method to handle profile fetching and UI setup separately
+    static async getUserProfileAndSetupUI(user) {
+        try {
+            // Wait for token propagation
+            console.log("Waiting for auth state to fully propagate...");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            console.log("Token valid before profile fetch:", !!TokenManager.getCurrentToken());
+            const userData = await UserService.fetchUserProfile(user);
+            
+            if (userData) {
+                console.log("User profile fetched successfully:", userData);
+                if (userData.userRole) {
+                    this.userRole = userData.userRole;
+                    console.log("User role set to:", this.userRole);
+                }
+                
+                // Now update UI with role-specific elements
+                this.updateUI();
+            } else {
+                console.warn("No user profile data was returned");
+                // Still update UI with default role
+                this.updateUI();
+            }
+        } catch (profileError) {
+            console.warn('Failed to fetch user profile, attempting retry with fresh token', profileError);
+            
+            // Try one more time with a fresh token
+            try {
+                const freshToken = await user.getIdToken(true); // Force token refresh
+                localStorage.setItem('authToken', freshToken);
+                console.log("Retrying profile fetch with fresh token");
+                
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                const retryData = await UserService.fetchUserProfile(user);
+                
+                if (retryData && retryData.userRole) {
+                    this.userRole = retryData.userRole;
+                }
+                
+                // Update UI again with hopefully correct role data
+                this.updateUI();
+            } catch (retryError) {
+                console.error("Profile fetch retry failed:", retryError);
+                // Update UI with default role anyway
+                this.updateUI();
+            }
+        }
+    }
+    
+    // Basic UI update with minimal authentication info
+    static updateBasicUI() {
+        const loginRequiredButtons = document.querySelectorAll('[data-requires-login="true"]');
+        const userInfoContainer = document.getElementById('user-info');
+        
+        loginRequiredButtons.forEach(btn => {
+            btn.classList.toggle('active', this.isLoggedIn);
+        });
+
+        if (userInfoContainer) {
+            userInfoContainer.innerHTML = this.isLoggedIn 
+                ? `<div class="user-dropdown">
+                    <button class="user-dropdown-toggle">
+                        <i class="fas fa-user-circle"></i>
+                        <span class="username">${this.user.displayName || this.user.email}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="user-dropdown-menu">
+                        <a href="/profile.html" class="profile-link">
+                            <i class="fas fa-user"></i> My Profile
+                        </a>
+                        <a href="#" class="logout-link" onclick="Auth.logout(); return false;">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>`
+                : `<button onclick="Modal.show()" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                   </button>`;
+                   
+            // Add event listeners to dropdown elements if logged in
+            if (this.isLoggedIn) {
+                const toggleButton = userInfoContainer.querySelector('.user-dropdown-toggle');
+                if (toggleButton) {
+                    toggleButton.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        const dropdownMenu = userInfoContainer.querySelector('.user-dropdown-menu');
+                        if (dropdownMenu) {
+                            dropdownMenu.classList.toggle('active');
+                        }
+                    });
+                }
+            }
+        }
     }
     
     // Secure Redirect Handling
@@ -442,7 +511,7 @@ class AuthService {
         }
     }
     
-    // UI Updates
+    // Full UI update with role-specific elements
     static updateUI() {
         const loginRequiredButtons = document.querySelectorAll('[data-requires-login="true"]');
         const userInfoContainer = document.getElementById('user-info');
@@ -451,41 +520,66 @@ class AuthService {
             btn.classList.toggle('active', this.isLoggedIn);
         });
 
-        if (userInfoContainer) {
-            userInfoContainer.innerHTML = this.isLoggedIn 
-                ? `<div class="user-dropdown">
-                    <button class="user-dropdown-toggle">
-                        <i class="fas fa-user-circle"></i>
-                        <span class="username">${this.user.displayName || this.user.email}</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </button>
-                    <div class="user-dropdown-menu">
-                        <a href="${this.userRole === 'admin' ? '/admin/dashboard.html' : '/admin/users.html'}" class="dashboard-link">
-                            <i class="fas ${this.userRole === 'admin' ? 'fa-tachometer-alt' : 'fa-user'}"></i> 
-                            ${this.userRole === 'admin' ? 'Admin Dashboard' : 'My Profile'}
-                        </a>
-                        <a href="#" class="logout-link" onclick="Auth.logout(); return false;">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </a>
-                    </div>
-                </div>`
-                : `<button onclick="Modal.show()" class="login-btn">
-                    <i class="fas fa-sign-in-alt"></i> Login
-                   </button>`;
+        if (userInfoContainer && this.isLoggedIn) {
+            userInfoContainer.innerHTML = `<div class="user-dropdown">
+                <button class="user-dropdown-toggle">
+                    <i class="fas fa-user-circle"></i>
+                    <span class="username">${this.user.displayName || this.user.email}</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="user-dropdown-menu">
+                    ${this.getRoleSpecificMenuItems()}
+                    <a href="#" class="logout-link" onclick="Auth.logout(); return false;">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </div>
+            </div>`;
                    
-            // Add event listeners to dropdown elements if logged in
-            if (this.isLoggedIn) {
-                const toggleButton = userInfoContainer.querySelector('.user-dropdown-toggle');
-                if (toggleButton) {
-                    toggleButton.addEventListener('click', (event) => {
-                        event.preventDefault();
-                        const dropdownMenu = userInfoContainer.querySelector('.user-dropdown-menu');
-                        if (dropdownMenu) {
-                            dropdownMenu.classList.toggle('active');
-                        }
-                    });
-                }
+            // Add event listeners to dropdown elements
+            const toggleButton = userInfoContainer.querySelector('.user-dropdown-toggle');
+            if (toggleButton) {
+                toggleButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const dropdownMenu = userInfoContainer.querySelector('.user-dropdown-menu');
+                    if (dropdownMenu) {
+                        dropdownMenu.classList.toggle('active');
+                    }
+                });
             }
+        } else if (userInfoContainer) {
+            userInfoContainer.innerHTML = `<button onclick="Modal.show()" class="login-btn">
+                <i class="fas fa-sign-in-alt"></i> Login
+               </button>`;
+        }
+    }
+
+    // Get role-specific menu items
+    static getRoleSpecificMenuItems() {
+        switch (this.userRole) {
+            case 'admin':
+                return `
+                    <a href="/admin/dashboard.html" class="dashboard-link">
+                        <i class="fas fa-tachometer-alt"></i> Admin Dashboard
+                    </a>
+                    <a href="/admin/users.html" class="users-link">
+                        <i class="fas fa-users"></i> Manage Users
+                    </a>`;
+            case 'teacher':
+                return `
+                    <a href="/teacher/dashboard.html" class="dashboard-link">
+                        <i class="fas fa-chalkboard-teacher"></i> Teacher Dashboard
+                    </a>
+                    <a href="/teacher/classes.html" class="classes-link">
+                        <i class="fas fa-book"></i> My Classes
+                    </a>`;
+            default: // student or any other role
+                return `
+                    <a href="/profile.html" class="profile-link">
+                        <i class="fas fa-user"></i> My Profile
+                    </a>
+                    <a href="/courses.html" class="courses-link">
+                        <i class="fas fa-graduation-cap"></i> My Courses
+                    </a>`;
         }
     }
 
