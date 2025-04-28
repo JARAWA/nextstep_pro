@@ -1,6 +1,6 @@
 import Auth from './auth/index.js';
 import Modal from './modal.js';
-import userDropdown from './user-dropdown.js';
+import UserService from './user-dropdown.js'; // This imports the UserService class
 
 document.addEventListener('DOMContentLoaded', function() {
     // Load all components
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Add a small delay to ensure DOM is fully updated
                     setTimeout(() => {
                         if (document.getElementById('user-info')) {
-                            userDropdown.init();
+                            initializeUserDropdown();
                         } else {
                             console.error('User info container still not found after loading components');
                         }
@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Initialize user dropdown AFTER components are loaded and auth is initialized
                     setTimeout(() => {
                         if (document.getElementById('user-info')) {
-                            userDropdown.init();
+                            initializeUserDropdown();
                         } else {
                             console.error('User info container still not found after loading components');
                         }
@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Still try to initialize the dropdown after a delay
             setTimeout(() => {
                 if (document.getElementById('user-info')) {
-                    userDropdown.init();
+                    initializeUserDropdown();
                 } else {
                     console.error('User info container still not found after loading components');
                 }
@@ -61,6 +61,79 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Error loading components:', error);
     });
 });
+
+// Function to initialize user dropdown using UserService
+function initializeUserDropdown() {
+    // Get current user from Auth
+    const currentUser = Auth.user; // Using Auth.user getter property
+    
+    if (currentUser) {
+        // Use UserService to get user data
+        UserService.getUserData(currentUser)
+            .then(userData => {
+                if (userData) {
+                    updateUserInfoUI(userData);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching user data:', error);
+            });
+    }
+}
+
+// Function to update the UI with user data
+function updateUserInfoUI(userData) {
+    const userInfoElement = document.getElementById('user-info');
+    if (!userInfoElement) return;
+    
+    // Check if dropdown already exists
+    if (userInfoElement.querySelector('.user-dropdown')) {
+        console.log('User dropdown already initialized');
+        return;
+    }
+    
+    // Create user dropdown UI similar to what AuthService.updateUI() does
+    userInfoElement.innerHTML = `
+        <div class="user-dropdown">
+            <button class="user-dropdown-toggle">
+                <i class="fas fa-user-circle"></i>
+                <span class="username">${userData.displayName || userData.name || userData.email}</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="user-dropdown-menu">
+                <a href="${userData.userRole === 'admin' ? '/admin/dashboard.html' : '/admin/users.html'}" class="dashboard-link">
+                    <i class="fas ${userData.userRole === 'admin' ? 'fa-tachometer-alt' : 'fa-user'}"></i> 
+                    ${userData.userRole === 'admin' ? 'Admin Dashboard' : 'My Profile'}
+                </a>
+                <a href="#" class="logout-link" onclick="Auth.logout(); return false;">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    `;
+    
+    // Add event listener to toggle dropdown
+    const toggleButton = userInfoElement.querySelector('.user-dropdown-toggle');
+    if (toggleButton) {
+        toggleButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            const dropdownMenu = userInfoElement.querySelector('.user-dropdown-menu');
+            if (dropdownMenu) {
+                dropdownMenu.classList.toggle('active');
+            }
+        });
+    }
+    
+    // Close the dropdown when clicking outside
+    document.addEventListener('click', (event) => {
+        if (!userInfoElement.contains(event.target)) {
+            const dropdownMenu = userInfoElement.querySelector('.user-dropdown-menu');
+            if (dropdownMenu && dropdownMenu.classList.contains('active')) {
+                dropdownMenu.classList.remove('active');
+            }
+        }
+    });
+}
 
 // Function to load components
 async function loadComponent(containerId, componentPath) {
