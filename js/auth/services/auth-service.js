@@ -389,15 +389,22 @@ class AuthService {
                 passwordInput.value
             );
 
-            // Check if email is verified
-            if (!userCredential.user.emailVerified) {
-                await sendEmailVerification(userCredential.user);
-                await signOut(auth);
-                if (window.showToast) {
-                    window.showToast('Please verify your email. Verification link sent.', 'warning');
-                }
-                return;
-            }
+         // Check if email is verified
+if (!userCredential.user.emailVerified) {
+    // Only send verification if they haven't been sent one recently
+    const lastSent = localStorage.getItem(`verification_sent_${emailInput.value.trim()}`);
+    const now = Date.now();
+    if (!lastSent || (now - parseInt(lastSent)) > 5 * 60 * 1000) { // 5 minutes cooldown
+        await sendEmailVerification(userCredential.user);
+        localStorage.setItem(`verification_sent_${emailInput.value.trim()}`, now.toString());
+    }
+    
+    if (window.showToast) {
+        window.showToast('Please check your email to verify your account.', 'warning');
+    }
+    // Don't sign them out - let them use the app with limited functionality
+    return;
+}
 
             // Get and store authentication token
             const token = await TokenManager.getFirebaseToken(userCredential.user);
