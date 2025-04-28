@@ -37,8 +37,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add a small delay to ensure DOM is fully updated
             setTimeout(() => {
                 if (document.getElementById('user-info')) {
-                    // Don't initialize dropdown here - let Auth handle the basic UI
-                    setupAuthChangeListener();
+                    // We don't need to initialize dropdown here - Auth will handle it
+                    console.log('Auth initialized successfully');
                 } else {
                     console.error('User info container still not found after loading components');
                 }
@@ -51,22 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// New function to set up auth state change listener
-function setupAuthChangeListener() {
-    // Listen for authentication state changes
-    firebase.auth().onAuthStateChanged(user => {
-        if (user) {
-            console.log('User signed in, waiting for profile data...');
-            // Auth service will handle the initial UI update
-            // We just need to ensure we don't conflict with it
-        } else {
-            console.log('User signed out');
-            // Auth service will handle the UI update for logout
-        }
-    });
-}
-
-// Function to initialize user dropdown using UserService - now only used for manual refresh
+// Function to initialize user dropdown using UserService - used for manual refresh
 function initializeUserDropdown() {
     // Get current user from Auth
     const currentUser = Auth.user; // Using Auth.user getter property
@@ -85,7 +70,7 @@ function initializeUserDropdown() {
     }
 }
 
-// Function to update the UI with user data - now only used for manual refresh
+// Function to update the UI with user data - used for manual refresh
 function updateUserInfoUI(userData) {
     const userInfoElement = document.getElementById('user-info');
     if (!userInfoElement) return;
