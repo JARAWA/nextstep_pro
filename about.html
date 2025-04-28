@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Learn about NextStep - Your smart college admission guide for JOSAA, MHT-CET, and NEET-UG counselling">
+    <meta name="description" content="NextStep - Your intelligent college admission guide for JOSAA, MHT-CET, and NEET-UG counselling">
     <title>About NextStep - Your Smart College Admission Guide</title>
     
     <!-- Google Fonts -->
@@ -12,7 +12,7 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
-    <!-- Custom CSS - Use relative paths without template variables -->
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/modal.css">
     <link rel="stylesheet" href="css/responsive.css">
@@ -74,33 +74,6 @@
       ]
     }
     </script>
-    
-    <!-- Firebase and Scripts - Use relative paths -->
-    <script type="module">
-      // Import the functions you need from the SDKs you need
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
-      import { getAuth } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
-      import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-analytics.js";
-
-      // Your web app's Firebase configuration
-      const firebaseConfig = {
-        apiKey: "AIzaSyC7tvZe9NeHRhYuTVrQnkaSG7Nkj3ZS40U",
-        authDomain: "nextstep-log.firebaseapp.com",
-        projectId: "nextstep-log",
-        storageBucket: "nextstep-log.firebasestorage.app",
-        messagingSenderId: "9308831285",
-        appId: "1:9308831285:web:d55ed6865804c50f743b7c",
-        measurementId: "G-BPGP3TBN3N"
-      };
-
-      // Initialize Firebase
-      const app = initializeApp(firebaseConfig);
-      const auth = getAuth(app);
-      const analytics = getAnalytics(app);
-
-      // Export auth for use in other scripts
-      window.firebaseAuth = auth;
-    </script>
 </head>
 <body>
     
@@ -111,121 +84,184 @@
     <div id="nav-container"></div>
 
     <!-- Header Section -->
-    <header class="page-header">
-        <div class="container">
-            <h1 class="text-center">About NextStep</h1>
-            <p class="lead text-center">Your Smart College Admission Guide</p>
-        </div>
+    <header>
+        <img src="images/logo.png" alt="NextStep Logo" class="logo-img">
+        <h1 class="tagline">NextStep - Where clarity meets opportunity</h1>
+        <p class="secondary-tagline">Making Your Next Academic Move Simple</p>
     </header>
 
     <!-- Main Content -->
     <main class="container py-4">
         <!-- About Section -->
         <section class="content-section">
-            <h2>About NextStep – Your Smart College Admission Guide</h2>
+            <h2>Your Journey to the Right College Begins Here</h2>
             
-            <p class="lead"><strong>Welcome to NextStep</strong> — your trusted partner for college admissions through <strong>JOSAA counselling</strong>, <strong>MHT-CET CAP rounds</strong>, and <strong>NEET-UG seat allotment</strong>.</p>
-            
-            <p>We specialize in providing <strong>personalized college preference lists</strong> based on your rank, helping you secure the best possible seat at your dream college.</p>
+            <p class="lead"><strong>NextStep</strong> is your trusted ally for navigating the complex world of college admissions through <strong>JOSAA counselling</strong>, <strong>MHT-CET CAP rounds</strong>, and <strong>NEET-UG seat allotment</strong>.</p>
             
             <div class="highlight-box">
-                <p class="mb-0"><strong>No more guesswork. No more confusion. Only smart, strategic admission choices.</strong></p>
+                <p class="mb-0"><strong>Data-driven. Personalized. Strategic.</strong> We transform your rank into a pathway to the best possible college admission.</p>
             </div>
             
-            <h3 class="mt-4">Why Is Filling the Right College Preference List So Important?</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">4</div>
+                    <div class="stat-label">Exams Supported</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">1000+</div>
+                    <div class="stat-label">Colleges in Database</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">Free Service</div>
+                </div>
+            </div>
             
-            <p>The <strong>college choice filling</strong> process can make or break your future. Whether you are applying through JEE Main, JEE Advanced, MHT-CET, or NEET-UG, the order of your college preferences determines which college and course you finally get.</p>
+            <h3>Why Your Choice Filling Strategy Matters</h3>
             
-            <p>Here's why filling your preference list correctly is crucial:</p>
+            <p>The college admission process is much more than just achieving a good rank—it's about converting that rank into the best possible college placement through strategic choice filling.</p>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-balance-scale"></i>
+                    </div>
+                    <div class="feature-title">Balance Risk & Reward</div>
+                    <p>We help you create a preference list with the perfect mix of ambitious, realistic, and safe options.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="feature-title">Data-Driven Insights</div>
+                    <p>Our recommendations are based on previous years' trends and comprehensive college data.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div class="feature-title">Personalized Strategy</div>
+                    <p>Your rank, category, and preferences create a tailor-made college list just for you.</p>
+                </div>
+            </div>
+            
+            <h3>How NextStep Transforms Your Admission Journey</h3>
+            
+            <div class="process-steps">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <h4>Enter Your Details</h4>
+                    <p>Share your entrance exam rank, category, home state, and preferences with us.</p>
+                </div>
+                
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <h4>Get Your College List</h4>
+                    <p>Receive an optimized preference list with balanced ambitious, realistic, and safe options.</p>
+                </div>
+                
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <h4>Customize & Finalize</h4>
+                    <p>Adjust your list based on personal preferences before submitting it on the official portal.</p>
+                </div>
+            </div>
+            
+            <h3>Common Pitfalls We Help You Avoid</h3>
+            
             <ul class="feature-list">
-                <li><strong>Avoid being over-ambitious</strong>: Listing only top colleges above your rank may leave you without any seat.</li>
-                <li><strong>Avoid being too safe</strong>: Choosing only lower-ranked options can waste your potential and career prospects.</li>
-                <li><strong>Strategic balance</strong> between ambitious, realistic, and safe options ensures the best outcomes.</li>
+                <li><strong>Over-ambition trap:</strong> Listing only top colleges above your rank range.</li>
+                <li><strong>Safety overkill:</strong> Playing it too safe and missing opportunities at better institutions.</li>
+                <li><strong>Reservation confusion:</strong> Misunderstanding complex category and quota systems.</li>
+                <li><strong>Code errors:</strong> Confusing similar-sounding college names and course codes.</li>
+                <li><strong>Future-blindness:</strong> Choosing without considering placement opportunities and future prospects.</li>
             </ul>
             
-            <p>NextStep ensures that your college list is perfectly balanced to <strong>maximize your chances</strong> of getting into the best possible college based on your score.</p>
-            
-            <h3 class="mt-4">Common Mistakes Students Make During College Counselling</h3>
-            
-            <ul class="feature-list">
-                <li>Not including backup colleges, resulting in no admission.</li>
-                <li>Confusing college names and codes (especially in MHT-CET choice filling).</li>
-                <li>Ignoring reservation policies and eligibility requirements.</li>
-                <li>Choosing colleges without considering future goals like placements, research, or higher studies.</li>
-            </ul>
-            
-            <p>At NextStep, we guide you to avoid these mistakes and make well-informed decisions.</p>
-            
-            <h3 class="mt-4">How NextStep Helps You</h3>
-            
-            <p>We provide <strong>data-driven college recommendations</strong> based on:</p>
-            <ul class="feature-list">
-                <li>Your entrance exam rank (JEE Main, JEE Advanced, MHT-CET, NEET-UG)</li>
-                <li>Your category, home state, gender, and other eligibility criteria</li>
-                <li>Past year closing ranks and latest admission trends</li>
-            </ul>
-            
-            <p>NextStep's smart algorithm gives you a <strong>personalized, optimized college list</strong> that balances ambition and safety — giving you the edge during choice filling.</p>
-            
-            <div class="text-center mt-4">
-                <a href="/" class="cta-button">Try NextStep Now</a>
+            <div class="text-center my-4">
+                <a href="/" class="cta-button">Begin Your College Journey</a>
             </div>
         </section>
         
         <!-- FAQ Section -->
         <section class="content-section">
-            <h2>Frequently Asked Questions (FAQs)</h2>
+            <h2>Frequently Asked Questions</h2>
             
-            <div class="faq-item">
-                <div class="faq-question">1. What is NextStep?</div>
-                <div class="faq-answer">
-                    <p>NextStep is a college choice filling platform that helps students predict and organize the best colleges they can get based on their entrance exam ranks like JEE Main, JEE Advanced, MHT-CET, and NEET-UG.</p>
+            <div class="faq-section">
+                <div class="faq-item">
+                    <div class="faq-question">What is NextStep?</div>
+                    <div class="faq-answer">
+                        <p>NextStep is an intelligent college choice filling platform designed to help students maximize their entrance exam results. We analyze your rank, category, and preferences to create an optimized college preference list for JOSAA, MHT-CET, and NEET-UG counselling processes.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">How does NextStep generate my college list?</div>
+                    <div class="faq-answer">
+                        <p>Our algorithm processes multiple factors including:</p>
+                        <ul>
+                            <li>Your entrance exam rank</li>
+                            <li>Category and reservation status</li>
+                            <li>Home state for quota eligibility</li>
+                            <li>Previous years' opening and closing ranks</li>
+                            <li>Latest admission trends and patterns</li>
+                        </ul>
+                        <p>This creates a personalized list with strategic placement of ambitious, realistic, and safe options to maximize your chances of securing the best possible seat.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">Which counselling processes does NextStep support?</div>
+                    <div class="faq-answer">
+                        <p>We currently provide comprehensive support for:</p>
+                        <ul>
+                            <li><strong>JEE Main</strong> - JOSAA counselling for NITs, IIITs, and GFTIs</li>
+                            <li><strong>JEE Advanced</strong> - IIT admissions</li>
+                            <li><strong>MHT-CET</strong> - Engineering and Pharmacy admissions in Maharashtra</li>
+                            <li><strong>NEET-UG</strong> - Medical admissions including MBBS, BDS, and AYUSH courses</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">Why is choice filling so critical?</div>
+                    <div class="faq-answer">
+                        <p>Your college preference list is the single most important factor that determines your final admission outcome, often even more important than small differences in rank. A strategically filled preference list can:</p>
+                        <ul>
+                            <li>Significantly improve your chances of admission to top colleges</li>
+                            <li>Protect you from getting no seat allocation despite having a decent rank</li>
+                            <li>Ensure you don't miss opportunities at better colleges due to unfamiliarity with the system</li>
+                            <li>Maximize the value of your hard-earned entrance exam performance</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">Is NextStep free to use?</div>
+                    <div class="faq-answer">
+                        <p>Yes! We currently offer our core college list generation service completely free of charge. We believe every student deserves access to strategic admission guidance regardless of their financial situation.</p>
+                        <p>In the future, we may introduce premium features with advanced insights and personalized counselling, but our basic service will remain free.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">Can I edit my generated preference list?</div>
+                    <div class="faq-answer">
+                        <p>Absolutely! NextStep provides you with a data-driven starting point, but we understand personal preferences matter too. You can freely modify your preference list by:</p>
+                        <ul>
+                            <li>Reordering colleges based on location preferences</li>
+                            <li>Prioritizing specific branches or courses you're passionate about</li>
+                            <li>Adding or removing institutions based on your research</li>
+                            <li>Fine-tuning your strategy before finalizing it for official submission</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
             
-            <div class="faq-item">
-                <div class="faq-question">2. How does NextStep generate my college list?</div>
-                <div class="faq-answer">
-                    <p>We use your rank, exam category, state quota, and previous years' closing ranks to suggest a mix of ambitious, realistic, and safe colleges tailored just for you.</p>
-                </div>
-            </div>
-            
-            <div class="faq-item">
-                <div class="faq-question">3. Which counselling processes does NextStep support?</div>
-                <div class="faq-answer">
-                    <p>We currently support choice filling for:</p>
-                    <ul>
-                        <li>JEE Main (through JOSAA counselling)</li>
-                        <li>JEE Advanced (IIT admissions)</li>
-                        <li>MHT-CET (Engineering/Pharmacy admissions in Maharashtra)</li>
-                        <li>NEET-UG (MBBS, BDS, AYUSH admissions)</li>
-                    </ul>
-                </div>
-            </div>
-            
-            <div class="faq-item">
-                <div class="faq-question">4. Why is choice filling so critical?</div>
-                <div class="faq-answer">
-                    <p>The correct preference list greatly improves your chances of getting a seat in a good college and prevents you from losing opportunities by being over-ambitious or under-confident.</p>
-                </div>
-            </div>
-            
-            <div class="faq-item">
-                <div class="faq-question">5. Is NextStep free to use?</div>
-                <div class="faq-answer">
-                    <p>Yes! Currently, you can use NextStep's core services for free. We may introduce premium features in the future offering even deeper insights.</p>
-                </div>
-            </div>
-            
-            <div class="faq-item">
-                <div class="faq-question">6. Can I edit my generated preference list later?</div>
-                <div class="faq-answer">
-                    <p>Of course! NextStep gives you a draft, which you can modify and finalize based on your personal interests and college priorities.</p>
-                </div>
-            </div>
-            
-            <div class="mt-4">
-                <p><strong>Still have questions?</strong> Visit our <a href="/">homepage</a> or contact our team — we're here to help!</p>
+            <div class="text-center mt-4">
+                <p><strong>Have more questions?</strong> We're here to help!</p>
+                <a href="contact.html" class="cta-button">Contact Our Team</a>
             </div>
         </section>
     </main>
@@ -236,7 +272,7 @@
     <!-- Include Modal -->
     <div id="modal-container"></div>
 
-    <!-- Firebase and Scripts -->
+    <!-- Scripts -->
     <script type="module">
       // Import the functions you need from the SDKs you need
       import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
@@ -262,6 +298,82 @@
       // Export auth for use in other scripts
       window.firebaseAuth = auth;
     </script>
+    
+    <script>
+      // FAQ Accordion Functionality
+      document.addEventListener('DOMContentLoaded', function() {
+        const faqItems = document.querySelectorAll('.faq-item');
+        
+        faqItems.forEach(item => {
+          const question = item.querySelector('.faq-question');
+          
+          question.addEventListener('click', () => {
+            // Close all other items
+            faqItems.forEach(otherItem => {
+              if (otherItem !== item && otherItem.classList.contains('active')) {
+                otherItem.classList.remove('active');
+              }
+            });
+            
+            // Toggle current item
+            item.classList.toggle('active');
+          });
+        });
+        
+        // Open the first FAQ item by default
+        if (faqItems.length > 0) {
+          faqItems[0].classList.add('active');
+        }
+      });
+      
+      // Counter Animation for Statistics
+      document.addEventListener('DOMContentLoaded', function() {
+        const statNumbers = document.querySelectorAll('.stat-number');
+        
+        const observerOptions = {
+          threshold: 0.5
+        };
+        
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const target = entry.target;
+              const finalValue = parseInt(target.textContent.replace(/[^\d]/g, ''));
+              
+              let startValue = 0;
+              let duration = 2000;
+              let increment = finalValue / (duration / 20);
+              
+              let counter = setInterval(() => {
+                startValue += increment;
+                
+                if (startValue >= finalValue) {
+                  target.textContent = target.textContent.includes('%') 
+                    ? finalValue + '%'
+                    : target.textContent.includes('+')
+                      ? finalValue.toLocaleString() + '+'
+                      : finalValue.toLocaleString();
+                  clearInterval(counter);
+                } else {
+                  target.textContent = target.textContent.includes('%')
+                    ? Math.floor(startValue) + '%'
+                    : target.textContent.includes('+')
+                      ? Math.floor(startValue).toLocaleString() + '+'
+                      : Math.floor(startValue).toLocaleString();
+                }
+              }, 20);
+              
+              observer.unobserve(target);
+            }
+          });
+        }, observerOptions);
+        
+        statNumbers.forEach(stat => {
+          observer.observe(stat);
+        });
+      });
+    </script>
+    
     <script type="module" src="js/main.js"></script>
     <script type="module" src="js/auth/index.js"></script>
     <script type="module" src="js/modal.js"></script>
