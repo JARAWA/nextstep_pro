@@ -708,4 +708,96 @@
         apiKey: "AIzaSyC7tvZe9NeHRhYuTVrQnkaSG7Nkj3ZS40U",
         authDomain: "nextstep-log.firebaseapp.com",
         projectId: "nextstep-log",
-        storageBucket: "nextstep-log
+        storageBucket: "nextstep-log.firebasestorage.app",
+        messagingSenderId: "9308831285",
+        appId: "1:9308831285:web:d55ed6865804c50f743b7c",
+        measurementId: "G-BPGP3TBN3N"
+      };
+
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const analytics = getAnalytics(app);
+
+      // Export auth for use in other scripts
+      window.firebaseAuth = auth;
+    </script>
+    
+    <script>
+      // FAQ Accordion Functionality
+      document.addEventListener('DOMContentLoaded', function() {
+        const faqItems = document.querySelectorAll('.faq-item');
+        
+        faqItems.forEach(item => {
+          const question = item.querySelector('.faq-question');
+          
+          question.addEventListener('click', () => {
+            // Close all other items
+            faqItems.forEach(otherItem => {
+              if (otherItem !== item && otherItem.classList.contains('active')) {
+                otherItem.classList.remove('active');
+              }
+            });
+            
+            // Toggle current item
+            item.classList.toggle('active');
+          });
+        });
+        
+        // Open the first FAQ item by default
+        if (faqItems.length > 0) {
+          faqItems[0].classList.add('active');
+        }
+      });
+      
+      // Counter Animation for Statistics
+      document.addEventListener('DOMContentLoaded', function() {
+        const statNumbers = document.querySelectorAll('.stat-number');
+        
+        const observerOptions = {
+          threshold: 0.5
+        };
+        
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const target = entry.target;
+              const finalValue = parseInt(target.textContent.replace(/[^\d]/g, ''));
+              
+              let startValue = 0;
+              let duration = 2000;
+              let increment = finalValue / (duration / 20);
+              
+              let counter = setInterval(() => {
+                startValue += increment;
+                
+                if (startValue >= finalValue) {
+                  target.textContent = target.textContent.includes('%') 
+                    ? finalValue + '%'
+                    : target.textContent.includes('+')
+                      ? finalValue.toLocaleString() + '+'
+                      : finalValue.toLocaleString();
+                  clearInterval(counter);
+                } else {
+                  target.textContent = target.textContent.includes('%')
+                    ? Math.floor(startValue) + '%'
+                    : target.textContent.includes('+')
+                      ? Math.floor(startValue).toLocaleString() + '+'
+                      : Math.floor(startValue).toLocaleString();
+                }
+              }, 20);
+              
+              observer.unobserve(target);
+            }
+          });
+        }, observerOptions);
+        
+        statNumbers.forEach(stat => {
+          observer.observe(stat);
+        });
+      });
+    </script>
+    
+    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/auth/index.js"></script>
+    <script type="module" src="js/modal.js"></script>
