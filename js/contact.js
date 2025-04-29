@@ -1,4 +1,4 @@
-// Add this to your main.js file or create a new js/contact.js file
+// contact.js - Handles WhatsApp chat and social media interactions
 
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
@@ -55,4 +55,50 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('a[href*="wa.me"]').forEach(link => {
         link.addEventListener('click', trackWhatsAppClick);
     });
+    
+    // ===== FACEBOOK INTEGRATION =====
+    
+    // Track Facebook page visits
+    const trackFacebookClick = () => {
+        // If Firebase Analytics is available
+        if (window.firebaseAnalytics) {
+            window.firebaseAnalytics.logEvent('social_click', {
+                platform: 'facebook'
+            });
+        }
+        
+        // If Google Analytics is available
+        if (window.gtag) {
+            gtag('event', 'click', {
+                'event_category': 'social_media',
+                'event_label': 'facebook_page'
+            });
+        }
+    };
+    
+    // Add tracking to all Facebook links
+    document.querySelectorAll('a[href*="facebook.nextstepedu"]').forEach(link => {
+        link.addEventListener('click', trackFacebookClick);
+    });
+    
+    // Handle floating social icon animations
+    const socialFloatIcons = document.querySelectorAll('.social-float-icon');
+    if (socialFloatIcons.length > 0) {
+        // Add hover effects or animations if needed
+        socialFloatIcons.forEach(icon => {
+            // Add any additional event listeners or animations
+            icon.addEventListener('mouseenter', () => {
+                icon.style.transform = 'scale(1.1)';
+            });
+            
+            icon.addEventListener('mouseleave', () => {
+                icon.style.transform = 'scale(1)';
+            });
+        });
+        
+        // Make social icons visible after a delay
+        setTimeout(() => {
+            document.querySelector('.social-float').style.opacity = '1';
+        }, 2500); // Slightly after WhatsApp button appears
+    }
 });
