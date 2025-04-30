@@ -24,6 +24,9 @@ class PaymentAuth {
         this.initialized = true;
         
         try {
+            // Load the dedicated payment modal
+            this.loadPaymentModal();
+            
             // Check if user is already logged in
             if (window.Auth && window.Auth.isLoggedIn && window.Auth.user) {
                 this.user = window.Auth.user;
@@ -59,6 +62,30 @@ class PaymentAuth {
         } catch (error) {
             console.error('Error initializing Payment Authentication Service:', error);
         }
+    }
+    
+    /**
+     * Load payment modal HTML
+     */
+    static loadPaymentModal() {
+        fetch('components/payment-modal.html')
+            .then(response => response.text())
+            .then(html => {
+                // Add the payment modal to the document
+                const modalContainer = document.createElement('div');
+                modalContainer.innerHTML = html;
+                document.body.appendChild(modalContainer.firstChild);
+                
+                console.log('Payment modal HTML loaded successfully');
+                
+                // Initialize PaymentModal if available
+                if (window.PaymentModal && typeof window.PaymentModal.init === 'function') {
+                    window.PaymentModal.init();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading payment modal HTML:', error);
+            });
     }
     
     /**
@@ -254,11 +281,62 @@ class PaymentAuth {
                 return;
             }
             
-            // Show payment modal for logged-in users
-            PaymentAuth.showPaymentModal();
+            // Show the premium feature notification
+            PaymentAuth.showPremiumFeatureNotification(e.currentTarget);
+            
+            // Show payment modal after a short delay
+            setTimeout(() => {
+                PaymentAuth.showPaymentModal();
+            }, 300);
+            
             return false;
         }
     };
+    
+    /**
+     * Show a brief "premium feature" notification that's properly positioned
+     * @param {HTMLElement} element - The element that was clicked
+     */
+    static showPremiumFeatureNotification(element) {
+        // Create notification element if it doesn't exist
+        let notification = document.getElementById('premium-feature-notification');
+        
+        if (!notification) {
+            notification = document.createElement('div');
+            notification.id = 'premium-feature-notification';
+            notification.className = 'premium-notification';
+            notification.style.position = 'fixed';
+            notification.style.padding = '8px 16px';
+            notification.style.backgroundColor = '#006B6B';
+            notification.style.color = 'white';
+            notification.style.borderRadius = '20px';
+            notification.style.fontWeight = 'bold';
+            notification.style.fontSize = '14px';
+            notification.style.boxShadow = '0 3px 6px rgba(0,0,0,0.2)';
+            notification.style.zIndex = '9999';
+            notification.style.opacity = '0';
+            notification.style.transition = 'opacity 0.3s ease';
+            notification.style.display = 'flex';
+            notification.style.alignItems = 'center';
+            notification.style.gap = '8px';
+            notification.innerHTML = '<i class="fas fa-crown" style="color: gold;"></i> Premium Feature';
+            
+            document.body.appendChild(notification);
+        }
+        
+        // Position the notification near the element
+        const rect = element.getBoundingClientRect();
+        notification.style.top = `${rect.top - 40}px`;
+        notification.style.left = `${rect.left + (rect.width / 2) - 85}px`;
+        
+        // Show notification
+        notification.style.opacity = '1';
+        
+        // Hide after delay
+        setTimeout(() => {
+            notification.style.opacity = '0';
+        }, 1000);
+    }
     
     /**
      * Add CSS styles for premium features
@@ -323,6 +401,12 @@ class PaymentAuth {
                 border-radius: 12px;
                 font-size: 12px;
                 font-weight: bold;
+            }
+            
+            /* Premium notification styling */
+            .premium-notification {
+                pointer-events: none;
+                font-family: 'Poppins', sans-serif;
             }
         `;
         
@@ -439,84 +523,97 @@ class PaymentAuth {
             }
         }
         
-        // Create or get payment modal
+        // Look for the dedicated payment modal first
         let paymentModal = document.getElementById('paymentModal');
         
-        if (!paymentModal) {
-            paymentModal = document.createElement('div');
-            paymentModal.id = 'paymentModal';
-            paymentModal.className = 'modal payment-modal';
+        if (paymentModal) {
+            // Use the dedicated payment modal if it exists
+            paymentModal.style.display = 'block';
             
-            paymentModal.innerHTML = `
-                <div class="modal-content payment-modal-content">
-                    <span class="close">&times;</span>
-                    <h2><i class="fas fa-crown"></i> Upgrade to Premium</h2>
-                    <p>Unlock all premium features and get the most out of our college preference tools.</p>
+            // Initialize PaymentModal if available
+            if (window.PaymentModal && typeof window.PaymentModal.openModal === 'function') {
+                window.PaymentModal.openModal();
+            }
+            
+            console.log('Showing dedicated payment modal');
+            return;
+        }
+        
+        // Fall back to the dynamic creation if needed
+        paymentModal = document.createElement('div');
+        paymentModal.id = 'paymentModal';
+        paymentModal.className = 'modal payment-modal';
+        
+        paymentModal.innerHTML = `
+            <div class="modal-content payment-modal-content">
+                <span class="close">&times;</span>
+                <h2><i class="fas fa-crown"></i> Upgrade to Premium</h2>
+                <p>Unlock all premium features and get the most out of our college preference tools.</p>
+                
+                <div class="payment-options">
+                    <div class="payment-option">
+                        <h3>Pay with Razorpay</h3>
+                        <p>Secure online payment</p>
+                        <button id="razorpay-button" class="btn payment-btn">
+                            <i class="fas fa-credit-card"></i> Pay ₹499
+                        </button>
+                    </div>
                     
-                    <div class="payment-options">
-                        <div class="payment-option">
-                            <h3>Pay with Razorpay</h3>
-                            <p>Secure online payment</p>
-                            <button id="razorpay-button" class="btn payment-btn">
-                                <i class="fas fa-credit-card"></i> Pay ₹499
+                    <div class="payment-option">
+                        <h3>Have a Verification Code?</h3>
+                        <p>Enter your code to get premium access</p>
+                        <div class="verification-form">
+                            <input type="text" id="verification-code" placeholder="Enter code" maxlength="12">
+                            <button id="verify-code-button" class="btn verify-btn">
+                                <i class="fas fa-check"></i> Verify
                             </button>
                         </div>
-                        
-                        <div class="payment-option">
-                            <h3>Have a Verification Code?</h3>
-                            <p>Enter your code to get premium access</p>
-                            <div class="verification-form">
-                                <input type="text" id="verification-code" placeholder="Enter code" maxlength="12">
-                                <button id="verify-code-button" class="btn verify-btn">
-                                    <i class="fas fa-check"></i> Verify
-                                </button>
-                            </div>
-                            <div id="verification-error" class="error-message"></div>
-                        </div>
+                        <div id="verification-error" class="error-message"></div>
                     </div>
                 </div>
-            `;
-            
-            document.body.appendChild(paymentModal);
-            
-            // Add event listeners
-            const closeBtn = paymentModal.querySelector('.close');
-            closeBtn.addEventListener('click', () => {
+            </div>
+        `;
+        
+        document.body.appendChild(paymentModal);
+        
+        // Add event listeners
+        const closeBtn = paymentModal.querySelector('.close');
+        closeBtn.addEventListener('click', () => {
+            paymentModal.style.display = 'none';
+        });
+        
+        // Close when clicking outside
+        window.addEventListener('click', (event) => {
+            if (event.target === paymentModal) {
                 paymentModal.style.display = 'none';
-            });
+            }
+        });
+        
+        // Razorpay button
+        const razorpayBtn = document.getElementById('razorpay-button');
+        razorpayBtn.addEventListener('click', () => {
+            this.initializeRazorpayPayment();
+        });
+        
+        // Verification button
+        const verifyBtn = document.getElementById('verify-code-button');
+        verifyBtn.addEventListener('click', () => {
+            const codeInput = document.getElementById('verification-code');
+            const code = codeInput.value.trim();
             
-            // Close when clicking outside
-            window.addEventListener('click', (event) => {
-                if (event.target === paymentModal) {
-                    paymentModal.style.display = 'none';
-                }
-            });
-            
-            // Razorpay button
-            const razorpayBtn = document.getElementById('razorpay-button');
-            razorpayBtn.addEventListener('click', () => {
-                this.initializeRazorpayPayment();
-            });
-            
-            // Verification button
-            const verifyBtn = document.getElementById('verify-code-button');
-            verifyBtn.addEventListener('click', () => {
-                const codeInput = document.getElementById('verification-code');
-                const code = codeInput.value.trim();
-                
-                if (code) {
-                    this.verifyCode(code);
-                } else {
-                    this.showVerificationError('Please enter a verification code');
-                }
-            });
-            
-            // Add payment modal styles
-            this.addPaymentModalStyles();
-        }
+            if (code) {
+                this.verifyCode(code);
+            } else {
+                this.showVerificationError('Please enter a verification code');
+            }
+        });
+        
+        // Add payment modal styles
+        this.addPaymentModalStyles();
         
         // Show the modal
         paymentModal.style.display = 'block';
+        console.log('Created and showed dynamic payment modal');
     }
     
     /**
