@@ -448,3 +448,36 @@ footer {
         margin-left: 4px;
     }
 }
+/* Premium feature styling */
+.premium-disabled {
+  position: relative;
+  overflow: hidden;
+}
+
+.premium-disabled::after {
+  content: "Premium Feature";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  z-index: 10;
+}
+
+.premium-badge {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  color: #333;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-left: 10px;
+}
