@@ -31,24 +31,6 @@ class PaymentAuth {
                 // Get user data to check payment status
                 await this.refreshPaymentStatus();
             }
-}
-
-// Initialize the PaymentAuth service when the page loads
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, initializing PaymentAuth');
-    // Initialize immediately rather than with a timeout
-    PaymentAuth.init();
-});
-
-// For Auth module initialization event
-document.addEventListener('authInitialized', () => {
-    console.log('Auth initialized, ensuring PaymentAuth is initialized');
-    // Ensure PaymentAuth is initialized after Auth
-    PaymentAuth.init();
-});
-
-// Expose PaymentAuth globally
-window.PaymentAuth = PaymentAuth;
             
             // Listen for auth state changes
             document.addEventListener('authStateChanged', async (event) => {
@@ -1014,3 +996,22 @@ window.PaymentAuth = PaymentAuth;
                 button.innerHTML = '<i class="fas fa-check"></i> Verify';
             }
         }
+    }
+}
+
+// Initialize the PaymentAuth service when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing PaymentAuth');
+    // Initialize immediately rather than with a timeout
+    PaymentAuth.init();
+});
+
+// For Auth module initialization event
+document.addEventListener('authInitialized', () => {
+    console.log('Auth initialized, ensuring PaymentAuth is initialized');
+    // Ensure PaymentAuth is initialized after Auth
+    PaymentAuth.init();
+});
+
+// Expose PaymentAuth globally
+window.PaymentAuth = PaymentAuth;
