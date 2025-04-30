@@ -36,6 +36,9 @@ class AuthService {
             await this.checkExistingSession();
             
             console.log('Authentication Service initialized successfully');
+            
+            // Fire an event to notify other components that Auth is initialized
+            document.dispatchEvent(new CustomEvent('authInitialized'));
         } catch (error) {
             console.error('Error during Authentication Service initialization:', error);
         }
@@ -93,6 +96,11 @@ class AuthService {
                         if (window.showToast) {
                             window.showToast(`Welcome back, ${user.displayName || user.email}!`, 'success');
                         }
+                        
+                        // Dispatch auth state change event for other components (like PaymentAuth)
+                        document.dispatchEvent(new CustomEvent('authStateChanged', {
+                            detail: user
+                        }));
                     } else {
                         console.error('Failed to obtain valid token');
                     }
@@ -111,6 +119,11 @@ class AuthService {
                 
                 this.updateUI();
                 this.disableLoginRequiredFeatures();
+                
+                // Dispatch auth state change event for other components
+                document.dispatchEvent(new CustomEvent('authStateChanged', {
+                    detail: null
+                }));
             }
         });
     }
@@ -170,8 +183,11 @@ class AuthService {
         const loginRequiredButtons = document.querySelectorAll('[data-requires-login="true"]');
         const userInfoContainer = document.getElementById('user-info');
         
+        // Only update elements that don't also require premium
         loginRequiredButtons.forEach(btn => {
-            btn.classList.toggle('active', this.isLoggedIn);
+            if (!btn.hasAttribute('data-requires-premium')) {
+                btn.classList.toggle('active', this.isLoggedIn);
+            }
         });
 
         if (userInfoContainer) {
@@ -232,6 +248,14 @@ class AuthService {
             redirectUrl.searchParams.append('token', token);
             redirectUrl.searchParams.append('source', 'nextstep-nexn');
             redirectUrl.searchParams.append('uid', this.user.uid);
+            
+            // Add premium token if user has premium access
+            if (window.PaymentAuth && window.PaymentAuth.isPaid) {
+                redirectUrl.searchParams.append('premium', 'true');
+                if (window.PaymentAuth.paymentExpiry) {
+                    redirectUrl.searchParams.append('premium_expiry', window.PaymentAuth.paymentExpiry);
+                }
+            }
 
             // Store the token in sessionStorage for retrieval on the destination page
             sessionStorage.setItem('josaa_auth_token', token);
@@ -250,26 +274,124 @@ class AuthService {
     
     // Button Setup
     static setupAuthButtons() {
-        const loginRequiredButtons = document.querySelectorAll('[data-requires-login="true"]');
+        // Add handlers to elements with data-requires-login="true" but not data-requires-premium="true"
+        const loginOnlyButtons = document.querySelectorAll('[data-requires-login="true"]:not([data-requires-premium="true"])');
         
-        loginRequiredButtons.forEach(btn => {
-            const targetUrl = btn.getAttribute('href') || btn.dataset.href;
+        loginOnlyButtons.forEach(btn => {
+            // Remove existing handler if any (to prevent duplicates)
+            btn.removeEventListener('click', this.loginRequiredHandler);
             
-            btn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                
-                if (!this.isLoggedIn) {
-                    if (window.Modal && typeof window.Modal.show === 'function') {
-                        window.Modal.show();
-                    }
-                    return;
-                }
-
-                if (targetUrl) {
-                    await this.handleSecureRedirect(targetUrl);
+            // Add login-disabled class initially if not logged in
+            if (!this.isLoggedIn) {
+                btn.classList.add('login-disabled');
+            } else {
+                btn.classList.remove('login-disabled');
+            }
+            
+            // Add click handler to show login modal for non-logged in users
+            btn.addEventListener('click', this.loginRequiredHandler);
+        });
+        
+        // Setup login/auth buttons
+        const loginButtons = document.querySelectorAll('.login-btn');
+        loginButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                if (window.Modal && typeof window.Modal.show === 'function') {
+                    window.Modal.show();
                 }
             });
         });
+        
+        // Setup logout buttons
+        const logoutButtons = document.querySelectorAll('.logout-link, .logout-btn');
+        logoutButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.logout();
+            });
+        });
+        
+        // Add CSS for login-disabled elements if not already added
+        this.addLoginRequiredStyles();
+    }
+    
+    /**
+     * Handler for clicks on login-required elements
+     * Using arrow function to maintain 'this' context
+     */
+    static loginRequiredHandler = (e) => {
+        if (!AuthService.isLoggedIn) {
+            // Stop all default actions
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('Login-protected feature clicked, showing login modal');
+            
+            // Show login modal
+            if (window.Modal && typeof window.Modal.show === 'function') {
+                window.Modal.show();
+            } else {
+                alert('Please login to access this feature');
+            }
+            return false;
+        }
+    };
+    
+    /**
+     * Add CSS styles for login-required elements
+     */
+    static addLoginRequiredStyles() {
+        // Check if styles already exist
+        if (document.getElementById('login-required-styles')) return;
+        
+        const styleEl = document.createElement('style');
+        styleEl.id = 'login-required-styles';
+        
+        styleEl.innerHTML = `
+            .login-disabled {
+                position: relative;
+                cursor: not-allowed !important;
+                opacity: 0.8;
+            }
+            
+            /* Add a lock icon overlay */
+            .login-disabled::before {
+                content: "🔒";
+                position: absolute;
+                top: -8px;
+                right: -8px;
+                background: #FFC107;
+                color: #000;
+                font-size: 12px;
+                padding: 2px 4px;
+                border-radius: 50%;
+                z-index: 10;
+                cursor: pointer;
+            }
+            
+            .login-disabled::after {
+                content: "Login Required";
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background: rgba(0, 0, 0, 0.7);
+                color: white;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+                z-index: 5;
+            }
+            
+            .login-disabled:hover::after {
+                opacity: 1;
+            }
+        `;
+        
+        document.head.appendChild(styleEl);
     }
     
     // Basic signup handler
@@ -390,21 +512,21 @@ class AuthService {
             );
 
          // Check if email is verified
-if (!userCredential.user.emailVerified) {
-    // Only send verification if they haven't been sent one recently
-    const lastSent = localStorage.getItem(`verification_sent_${emailInput.value.trim()}`);
-    const now = Date.now();
-    if (!lastSent || (now - parseInt(lastSent)) > 5 * 60 * 1000) { // 5 minutes cooldown
-        await sendEmailVerification(userCredential.user);
-        localStorage.setItem(`verification_sent_${emailInput.value.trim()}`, now.toString());
-    }
-    
-    if (window.showToast) {
-        window.showToast('Please check your email to verify your account.', 'warning');
-    }
-    // Don't sign them out - let them use the app with limited functionality
-    return;
-}
+            if (!userCredential.user.emailVerified) {
+                // Only send verification if they haven't been sent one recently
+                const lastSent = localStorage.getItem(`verification_sent_${emailInput.value.trim()}`);
+                const now = Date.now();
+                if (!lastSent || (now - parseInt(lastSent)) > 5 * 60 * 1000) { // 5 minutes cooldown
+                    await sendEmailVerification(userCredential.user);
+                    localStorage.setItem(`verification_sent_${emailInput.value.trim()}`, now.toString());
+                }
+                
+                if (window.showToast) {
+                    window.showToast('Please check your email to verify your account.', 'warning');
+                }
+                // Don't sign them out - let them use the app with limited functionality
+                return;
+            }
 
             // Get and store authentication token
             const token = await TokenManager.getFirebaseToken(userCredential.user);
@@ -520,43 +642,98 @@ if (!userCredential.user.emailVerified) {
     
     // Full UI update with role-specific elements
     static updateUI() {
+        // Get all elements with login and premium requirements
         const loginRequiredButtons = document.querySelectorAll('[data-requires-login="true"]');
+        const premiumElements = document.querySelectorAll('[data-requires-premium="true"]');
         const userInfoContainer = document.getElementById('user-info');
         
-        loginRequiredButtons.forEach(btn => {
-            btn.classList.toggle('active', this.isLoggedIn);
-        });
-
-        if (userInfoContainer && this.isLoggedIn) {
-            userInfoContainer.innerHTML = `<div class="user-dropdown">
-                <button class="user-dropdown-toggle">
-                    <i class="fas fa-user-circle"></i>
-                    <span class="username">${this.user.displayName || this.user.email}</span>
-                    <i class="fas fa-chevron-down"></i>
-                </button>
-                <div class="user-dropdown-menu">
-                    ${this.getRoleSpecificMenuItems()}
-                    <a href="#" class="logout-link" onclick="Auth.logout(); return false;">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
-                </div>
-            </div>`;
-                   
-            // Add event listeners to dropdown elements
-            const toggleButton = userInfoContainer.querySelector('.user-dropdown-toggle');
-            if (toggleButton) {
-                toggleButton.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    const dropdownMenu = userInfoContainer.querySelector('.user-dropdown-menu');
-                    if (dropdownMenu) {
-                        dropdownMenu.classList.toggle('active');
+        if (this.isLoggedIn) {
+            // User is logged in
+            loginRequiredButtons.forEach(element => {
+                // Remove login-disabled class if it exists
+                element.classList.remove('login-disabled');
+                
+                // Skip premium handling for elements that require premium
+                // (PaymentAuth will handle these elements separately)
+                if (!element.hasAttribute('data-requires-premium')) {
+                    // For non-premium elements that just need login, handle href restoration
+                    if (element.tagName === 'A' && element.hasAttribute('data-href')) {
+                        element.href = element.getAttribute('data-href');
                     }
-                });
+                    
+                    // For buttons, enable them
+                    if (element.tagName === 'BUTTON') {
+                        element.disabled = false;
+                    }
+                }
+            });
+            
+            if (userInfoContainer) {
+                userInfoContainer.innerHTML = `<div class="user-dropdown">
+                    <button class="user-dropdown-toggle">
+                        <i class="fas fa-user-circle"></i>
+                        <span class="username">${this.user.displayName || this.user.email}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="user-dropdown-menu">
+                        ${this.getRoleSpecificMenuItems()}
+                        <div id="payment-status-indicator"></div>
+                        <a href="#" class="logout-link" onclick="Auth.logout(); return false;">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>`;
+                       
+                // Add event listeners to dropdown elements
+                const toggleButton = userInfoContainer.querySelector('.user-dropdown-toggle');
+                if (toggleButton) {
+                    toggleButton.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        const dropdownMenu = userInfoContainer.querySelector('.user-dropdown-menu');
+                        if (dropdownMenu) {
+                            dropdownMenu.classList.toggle('active');
+                        }
+                    });
+                }
+                
+                // If PaymentAuth is available, let it update the payment status indicator
+                if (window.PaymentAuth && typeof window.PaymentAuth.updateUI === 'function') {
+                    window.PaymentAuth.updateUI();
+                }
             }
-        } else if (userInfoContainer) {
-            userInfoContainer.innerHTML = `<button onclick="Modal.show()" class="login-btn">
-                <i class="fas fa-sign-in-alt"></i> Login
-               </button>`;
+            
+            // Hide login/signup buttons
+            const authButtons = document.querySelectorAll('.auth-btn, .login-btn, .signup-btn');
+            authButtons.forEach(button => {
+                button.style.display = 'none';
+            });
+        } else {
+            // User is not logged in
+            loginRequiredButtons.forEach(element => {
+                // Add login-disabled class
+                element.classList.add('login-disabled');
+                
+                // For anchor tags, store href in data-href and remove href
+                if (element.tagName === 'A' && element.hasAttribute('href')) {
+                    element.setAttribute('data-href', element.getAttribute('href'));
+                    element.removeAttribute('href');
+                }
+                
+                // For buttons, don't disable as we want the click handler to run
+                // Add login-required visual cue via CSS
+            });
+            
+            if (userInfoContainer) {
+                userInfoContainer.innerHTML = `<button onclick="Modal.show()" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                   </button>`;
+            }
+            
+            // Show login/signup buttons
+            const authButtons = document.querySelectorAll('.auth-btn, .login-btn, .signup-btn');
+            authButtons.forEach(button => {
+                button.style.display = 'inline-block';
+            });
         }
     }
 
@@ -591,16 +768,33 @@ if (!userCredential.user.emailVerified) {
     }
 
     static enableLoginRequiredFeatures() {
-        document.querySelectorAll('[data-requires-login="true"]').forEach(el => {
+        // Only enable features that don't also require premium status
+        document.querySelectorAll('[data-requires-login="true"]:not([data-requires-premium="true"])').forEach(el => {
             el.disabled = false;
             el.classList.remove('disabled');
+            el.classList.remove('login-disabled');
+            
+            // For anchor tags, restore href if it exists in data-href
+            if (el.tagName === 'A' && el.hasAttribute('data-href')) {
+                el.href = el.getAttribute('data-href');
+            }
         });
     }
 
     static disableLoginRequiredFeatures() {
         document.querySelectorAll('[data-requires-login="true"]').forEach(el => {
-            el.disabled = true;
-            el.classList.add('disabled');
+            el.classList.add('login-disabled');
+            
+            // For anchor tags, store href in data-href and remove href
+            if (el.tagName === 'A' && el.hasAttribute('href')) {
+                el.setAttribute('data-href', el.getAttribute('href'));
+                el.removeAttribute('href');
+            }
+            
+            // For buttons that don't require JS click handlers, disable them
+            if (el.tagName === 'BUTTON' && !el.hasAttribute('data-requires-js-handler')) {
+                el.disabled = true;
+            }
         });
     }
 }
