@@ -30,7 +30,7 @@ class PaymentAuth {
                 
                 // Get user data to check payment status
                 await this.refreshPaymentStatus();
-            
+            }
 
 // Initialize the PaymentAuth service when the page loads
 document.addEventListener('DOMContentLoaded', () => {
@@ -97,9 +97,11 @@ window.PaymentAuth = PaymentAuth;
                             }
                             
                             // Check children for premium attributes
-                            const premiumChildren = node.querySelectorAll('[data-requires-premium="true"]');
-                            if (premiumChildren.length > 0) {
-                                premiumElementsAdded = true;
+                            if (node.querySelectorAll) {
+                                const premiumChildren = node.querySelectorAll('[data-requires-premium="true"]');
+                                if (premiumChildren.length > 0) {
+                                    premiumElementsAdded = true;
+                                }
                             }
                         }
                     });
@@ -123,40 +125,70 @@ window.PaymentAuth = PaymentAuth;
      * Refresh payment status from user data
      */
     static async refreshPaymentStatus() {
-        if (!this.user || !window.UserService) return;
+        if (!this.user) return;
         
         try {
-            // Get user data from Firestore via UserService
-            const userData = await window.UserService.getUserData(this.user);
-            
-            if (userData) {
-                this.isPaid = Boolean(userData.isPaid);
-                this.paymentExpiry = userData.paymentExpiry || null;
+            // Use UserService if available
+            if (window.UserService) {
+                // Get user data from Firestore via UserService
+                const userData = await window.UserService.getUserData(this.user);
                 
-                // Check if payment has expired
-                if (this.isPaid && this.paymentExpiry) {
-                    const now = new Date();
-                    const expiryDate = new Date(this.paymentExpiry);
+                if (userData) {
+                    this.isPaid = Boolean(userData.isPaid);
+                    this.paymentExpiry = userData.paymentExpiry || null;
                     
-                    if (now > expiryDate) {
-                        // Payment has expired
-                        this.isPaid = false;
+                    // Check if payment has expired
+                    if (this.isPaid && this.paymentExpiry) {
+                        const now = new Date();
+                        const expiryDate = new Date(this.paymentExpiry);
                         
-                        // Update user profile to reflect expired status
-                        await window.UserService.updateUserProfile(this.user, {
-                            isPaid: false
-                        });
-                        
-                        console.log('Premium subscription has expired');
-                    } else {
-                        // Payment is valid
-                        console.log(`Premium active until: ${expiryDate.toLocaleDateString()}`);
+                        if (now > expiryDate) {
+                            // Payment has expired
+                            this.isPaid = false;
+                            
+                            // Update user profile to reflect expired status
+                            if (window.UserService.updateUserProfile) {
+                                await window.UserService.updateUserProfile(this.user, {
+                                    isPaid: false
+                                });
+                            }
+                            
+                            console.log('Premium subscription has expired');
+                        } else {
+                            // Payment is valid
+                            console.log(`Premium active until: ${expiryDate.toLocaleDateString()}`);
+                        }
                     }
                 }
-                
-                // Update UI to reflect payment status
-                this.updateUI();
+            } else {
+                // Fallback: Try to get data from localStorage
+                const storedData = localStorage.getItem(`user_payment_status_${this.user.uid}`);
+                if (storedData) {
+                    try {
+                        const data = JSON.parse(storedData);
+                        this.isPaid = Boolean(data.isPaid);
+                        this.paymentExpiry = data.paymentExpiry || null;
+                        
+                        // Check expiry
+                        if (this.isPaid && this.paymentExpiry) {
+                            const now = new Date();
+                            const expiryDate = new Date(this.paymentExpiry);
+                            
+                            if (now > expiryDate) {
+                                this.isPaid = false;
+                                localStorage.setItem(`user_payment_status_${this.user.uid}`, JSON.stringify({
+                                    isPaid: false
+                                }));
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error parsing stored payment data:', e);
+                    }
+                }
             }
+            
+            // Update UI to reflect payment status
+            this.updateUI();
         } catch (error) {
             console.error('Error refreshing payment status:', error);
         }
@@ -176,8 +208,25 @@ window.PaymentAuth = PaymentAuth;
             // Add premium-disabled class initially if not paid
             if (!this.isPaid) {
                 element.classList.add('premium-disabled');
+                
+                // For anchor tags, store href in data-href and remove href
+                if (element.tagName === 'A' && element.hasAttribute('href')) {
+                    // Only store if we haven't already
+                    if (!element.hasAttribute('data-href')) {
+                        element.setAttribute('data-href', element.getAttribute('href'));
+                    }
+                    element.removeAttribute('href');
+                }
+                
+                // For buttons, don't disable as we want the click handler to run
+                // but add visual cues via the premium-disabled class
             } else {
                 element.classList.remove('premium-disabled');
+                
+                // For anchor tags, restore href from data-href
+                if (element.tagName === 'A' && element.hasAttribute('data-href')) {
+                    element.href = element.getAttribute('data-href');
+                }
             }
             
             // Add click handler to show payment modal for non-premium users
@@ -187,21 +236,23 @@ window.PaymentAuth = PaymentAuth;
         // Add show premium modal handler to all premium buttons
         const premiumButtons = document.querySelectorAll('.premium-btn');
         premiumButtons.forEach(button => {
-            // Remove existing handler if any
-            button.removeEventListener('click', this.showPaymentModal);
+            // Remove existing handler to prevent duplicates
+            button.removeEventListener('click', () => this.showPaymentModal());
             
             // Add new handler
             button.addEventListener('click', () => {
                 this.showPaymentModal();
             });
         });
+        
+        // Add CSS for premium-disabled elements
+        this.addPremiumStyles();
     }
     
     /**
      * Handler for clicks on premium elements
-     * Using arrow function to maintain 'this' context
      */
-    static premiumClickHandler = (e) => {
+    static premiumClickHandler = function(e) {
         if (!PaymentAuth.isPaid) {
             // Stop all default actions
             e.preventDefault();
@@ -224,67 +275,7 @@ window.PaymentAuth = PaymentAuth;
             PaymentAuth.showPaymentModal();
             return false;
         }
-    };
-    
-    /**
-     * Update UI based on payment status
-     */
-    static updateUI() {
-        console.log('Updating UI based on payment status. isPaid:', this.isPaid);
-        
-        // Update premium elements visibility and functionality
-        document.querySelectorAll('[data-requires-premium="true"]').forEach(element => {
-            if (this.isPaid) {
-                element.classList.remove('premium-disabled');
-                
-                // If it's an anchor tag with data-href, restore the href
-                if (element.tagName === 'A' && element.hasAttribute('data-href')) {
-                    element.href = element.getAttribute('data-href');
-                }
-                
-                // For buttons, enable them
-                if (element.tagName === 'BUTTON') {
-                    element.disabled = false;
-                }
-            } else {
-                element.classList.add('premium-disabled');
-                
-                // For anchor tags, remove the href to prevent navigation
-                if (element.tagName === 'A' && element.hasAttribute('href')) {
-                    element.setAttribute('data-href', element.getAttribute('href'));
-                    element.removeAttribute('href');
-                }
-                
-                // For buttons, don't disable as we want the click handler to run
-                // but we can add visual cues via the premium-disabled class
-            }
-        });
-        
-        // Update payment status indicator if it exists
-        const statusIndicator = document.getElementById('payment-status-indicator');
-        if (statusIndicator) {
-            if (this.isPaid) {
-                statusIndicator.innerHTML = `
-                    <span class="premium-badge">
-                        <i class="fas fa-crown"></i> Premium
-                    </span>
-                `;
-            } else if (window.Auth && window.Auth.isLoggedIn) {
-                statusIndicator.innerHTML = `
-                    <a href="#" onclick="PaymentAuth.showPaymentModal(); return false;" class="upgrade-link">
-                        <i class="fas fa-crown"></i> Upgrade
-                    </a>
-                `;
-            } else {
-                statusIndicator.innerHTML = ''; // No indicator when not logged in
-            }
-        }
-        
-        // Update user dropdown menu if exists
-        this.updateUserDropdown();
-        
-        // Add CSS for premium-disabled elements if not already added
-        this.addPremiumStyles();
+    }
     }
     
     /**
@@ -301,21 +292,22 @@ window.PaymentAuth = PaymentAuth;
             .premium-disabled {
                 position: relative;
                 cursor: not-allowed !important;
-                opacity: 0.8;
+                opacity: 0.85;
             }
             
             /* Add a crown icon overlay */
             .premium-disabled::before {
                 content: "👑";
                 position: absolute;
-                top: -8px;
-                right: -8px;
+                top: -5px;
+                right: -5px;
                 background: #FFD700;
                 color: #000;
                 font-size: 12px;
                 padding: 2px 4px;
                 border-radius: 50%;
                 z-index: 10;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
                 cursor: pointer;
             }
             
@@ -353,6 +345,66 @@ window.PaymentAuth = PaymentAuth;
         `;
         
         document.head.appendChild(styleEl);
+    }
+    
+    /**
+     * Update UI based on payment status
+     */
+    static updateUI() {
+        console.log('Updating UI based on payment status. isPaid:', this.isPaid);
+        
+        // Update premium elements visibility and functionality
+        document.querySelectorAll('[data-requires-premium="true"]').forEach(element => {
+            if (this.isPaid) {
+                element.classList.remove('premium-disabled');
+                
+                // If it's an anchor tag with data-href, restore the href
+                if (element.tagName === 'A' && element.hasAttribute('data-href')) {
+                    element.href = element.getAttribute('data-href');
+                }
+                
+                // For buttons, enable them
+                if (element.tagName === 'BUTTON') {
+                    element.disabled = false;
+                }
+            } else {
+                element.classList.add('premium-disabled');
+                
+                // For anchor tags, remove the href to prevent navigation
+                if (element.tagName === 'A' && element.hasAttribute('href')) {
+                    if (!element.hasAttribute('data-href')) {
+                        element.setAttribute('data-href', element.getAttribute('href'));
+                    }
+                    element.removeAttribute('href');
+                }
+                
+                // For buttons, don't disable as we want the click handler to run
+                // but we can add visual cues via the premium-disabled class
+            }
+        });
+        
+        // Update payment status indicator if it exists
+        const statusIndicator = document.getElementById('payment-status-indicator');
+        if (statusIndicator) {
+            if (this.isPaid) {
+                statusIndicator.innerHTML = `
+                    <span class="premium-badge">
+                        <i class="fas fa-crown"></i> Premium
+                    </span>
+                `;
+            } else if (window.Auth && window.Auth.isLoggedIn) {
+                statusIndicator.innerHTML = `
+                    <a href="#" onclick="PaymentAuth.showPaymentModal(); return false;" class="upgrade-link">
+                        <i class="fas fa-crown"></i> Upgrade
+                    </a>
+                `;
+            } else {
+                statusIndicator.innerHTML = ''; // No indicator when not logged in
+            }
+        }
+        
+        // Update user dropdown menu if exists
+        this.updateUserDropdown();
     }
     
     /**
@@ -484,10 +536,6 @@ window.PaymentAuth = PaymentAuth;
         // Show the modal
         paymentModal.style.display = 'block';
     }
-    
-    // Rest of the code remains the same...
-    
-    /* The rest of the PaymentAuth class implementation continues here */
     
     /**
      * Add payment modal styles
@@ -745,6 +793,25 @@ window.PaymentAuth = PaymentAuth;
     }
     
     /**
+     * Store payment data in localStorage as backup
+     */
+    static storePaymentData() {
+        if (!this.user || !this.user.uid) return;
+        
+        try {
+            const paymentData = {
+                isPaid: this.isPaid,
+                paymentExpiry: this.paymentExpiry,
+                updatedAt: new Date().toISOString()
+            };
+            
+            localStorage.setItem(`user_payment_status_${this.user.uid}`, JSON.stringify(paymentData));
+        } catch (error) {
+            console.error('Error storing payment data:', error);
+        }
+    }
+    
+    /**
      * Verify payment with server
      * @param {Object} paymentResponse - Response from Razorpay
      */
@@ -757,6 +824,7 @@ window.PaymentAuth = PaymentAuth;
             }
             
             // Call the verifyPayment function
+            const firebase = window.firebase;
             const verifyPayment = firebase.functions().httpsCallable('verifyPayment');
             const response = await verifyPayment(paymentResponse);
             
@@ -764,6 +832,9 @@ window.PaymentAuth = PaymentAuth;
                 // Update local payment status
                 this.isPaid = true;
                 this.paymentExpiry = response.data.expiryDate;
+                
+                // Store in localStorage for backup access
+                this.storePaymentData();
                 
                 // Update UI
                 this.updateUI();
@@ -809,6 +880,7 @@ window.PaymentAuth = PaymentAuth;
             this.showVerificationError('');
             
             // Connect to Firestore
+            const firebase = window.firebase;
             const db = firebase.firestore();
             
             // Query for the verification code
@@ -889,69 +961,3 @@ window.PaymentAuth = PaymentAuth;
                         timestamp: now.toISOString(),
                         expiryDate: expiryDate.toISOString()
                     })
-                });
-                
-                // Save expiry date for local use
-                this.paymentExpiry = expiryDate.toISOString();
-            });
-            
-            // Code verification successful
-            this.isPaid = true;
-            
-            // Update UI
-            this.updateUI();
-            
-            // Close the payment modal
-            const paymentModal = document.getElementById('paymentModal');
-            if (paymentModal) {
-                paymentModal.style.display = 'none';
-            }
-            
-            if (window.showToast) {
-                window.showToast('Verification successful! Premium features activated.', 'success');
-            }
-            
-        } catch (error) {
-            console.error('Error verifying code:', error);
-            this.showVerificationError(error.message || 'Error verifying code. Please try again.');
-        } finally {
-            // Reset button state
-            const button = document.getElementById('verify-code-button');
-            if (button) {
-                button.disabled = false;
-                button.innerHTML = '<i class="fas fa-check"></i> Verify';
-            }
-        }
-    }
-    
-    /**
-     * Show verification error message
-     * @param {string} message - Error message to display
-     */
-    static showVerificationError(message) {
-        const errorElement = document.getElementById('verification-error');
-        if (errorElement) {
-            errorElement.textContent = message;
-        }
-    }
-    
-    /**
-     * Modify a redirect URL to include premium token
-     * @param {string} url - URL to modify
-     * @returns {string} Modified URL with premium token
-     */
-    static updateRedirectUrl(url) {
-        if (!url || !this.isPaid) return url;
-        
-        try {
-            const redirectUrl = new URL(url);
-            redirectUrl.searchParams.append('premium', 'true');
-            redirectUrl.searchParams.append('premium_expiry', this.paymentExpiry || '');
-            
-            return redirectUrl.toString();
-        } catch (error) {
-            console.error('Error updating redirect URL:', error);
-            return url;
-        }
-    }
-}
