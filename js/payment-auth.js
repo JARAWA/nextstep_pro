@@ -490,7 +490,7 @@ class PaymentAuth {
             
             // Configure Razorpay options
             const options = {
-                key: 'YOUR_RAZORPAY_KEY_ID', // Replace with your actual key
+                key: 'rzp_live_GgEM5tXGq55aA0', // Replace with your actual key
                 amount: amount,
                 currency: currency,
                 name: 'NextStep',
