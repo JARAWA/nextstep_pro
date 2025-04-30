@@ -11,12 +11,17 @@ class PaymentAuth {
     static isPaid = false;
     static paymentExpiry = null;
     static user = null;
+    static initialized = false;
     
     /**
      * Initialize the payment authentication service
      */
     static async init() {
         console.log('Initializing Payment Authentication Service');
+        
+        // Prevent double initialization
+        if (this.initialized) return;
+        this.initialized = true;
         
         try {
             // Check if user is already logged in
@@ -25,7 +30,24 @@ class PaymentAuth {
                 
                 // Get user data to check payment status
                 await this.refreshPaymentStatus();
-            }
+            
+
+// Initialize the PaymentAuth service when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing PaymentAuth');
+    // Initialize immediately rather than with a timeout
+    PaymentAuth.init();
+});
+
+// For Auth module initialization event
+document.addEventListener('authInitialized', () => {
+    console.log('Auth initialized, ensuring PaymentAuth is initialized');
+    // Ensure PaymentAuth is initialized after Auth
+    PaymentAuth.init();
+});
+
+// Expose PaymentAuth globally
+window.PaymentAuth = PaymentAuth;
             
             // Listen for auth state changes
             document.addEventListener('authStateChanged', async (event) => {
@@ -47,10 +69,54 @@ class PaymentAuth {
             // Initial UI update
             this.updateUI();
             
+            // Add event listener for dynamically added premium elements
+            this.observeDOMChanges();
+            
             console.log('Payment Authentication Service initialized successfully');
         } catch (error) {
             console.error('Error initializing Payment Authentication Service:', error);
         }
+    }
+    
+    /**
+     * Observe DOM changes to handle dynamically added premium elements
+     */
+    static observeDOMChanges() {
+        // Create a new observer for DOM changes
+        const observer = new MutationObserver((mutations) => {
+            let premiumElementsAdded = false;
+            
+            mutations.forEach(mutation => {
+                if (mutation.addedNodes.length) {
+                    // Check each added node for premium elements
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === 1) { // Element node
+                            // Check if this element has premium attribute
+                            if (node.hasAttribute && node.hasAttribute('data-requires-premium')) {
+                                premiumElementsAdded = true;
+                            }
+                            
+                            // Check children for premium attributes
+                            const premiumChildren = node.querySelectorAll('[data-requires-premium="true"]');
+                            if (premiumChildren.length > 0) {
+                                premiumElementsAdded = true;
+                            }
+                        }
+                    });
+                }
+            });
+            
+            // If premium elements were added, re-setup the handlers
+            if (premiumElementsAdded) {
+                this.setupPremiumFeatures();
+            }
+        });
+        
+        // Start observing with appropriate configuration
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
     }
     
     /**
@@ -100,38 +166,31 @@ class PaymentAuth {
      * Setup premium feature handlers
      */
     static setupPremiumFeatures() {
+        console.log('Setting up premium feature handlers');
+        
         // Add handlers to elements with data-requires-premium="true"
         document.querySelectorAll('[data-requires-premium="true"]').forEach(element => {
-            // Add premium-disabled class initially
+            // Remove existing handler if any (to prevent duplicates)
+            element.removeEventListener('click', this.premiumClickHandler);
+            
+            // Add premium-disabled class initially if not paid
             if (!this.isPaid) {
                 element.classList.add('premium-disabled');
+            } else {
+                element.classList.remove('premium-disabled');
             }
             
             // Add click handler to show payment modal for non-premium users
-            element.addEventListener('click', (e) => {
-                if (!this.isPaid) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    // Check if user is logged in first
-                    if (!window.Auth || !window.Auth.isLoggedIn) {
-                        if (window.Modal && typeof window.Modal.show === 'function') {
-                            window.Modal.show();
-                        } else {
-                            console.log('Login required');
-                        }
-                        return;
-                    }
-                    
-                    // Show payment modal for logged-in users
-                    this.showPaymentModal();
-                }
-            });
+            element.addEventListener('click', this.premiumClickHandler);
         });
         
         // Add show premium modal handler to all premium buttons
         const premiumButtons = document.querySelectorAll('.premium-btn');
         premiumButtons.forEach(button => {
+            // Remove existing handler if any
+            button.removeEventListener('click', this.showPaymentModal);
+            
+            // Add new handler
             button.addEventListener('click', () => {
                 this.showPaymentModal();
             });
@@ -139,15 +198,65 @@ class PaymentAuth {
     }
     
     /**
+     * Handler for clicks on premium elements
+     * Using arrow function to maintain 'this' context
+     */
+    static premiumClickHandler = (e) => {
+        if (!PaymentAuth.isPaid) {
+            // Stop all default actions
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('Premium feature clicked but not paid, showing payment modal');
+            
+            // Check if user is logged in first
+            if (!window.Auth || !window.Auth.isLoggedIn) {
+                if (window.Modal && typeof window.Modal.show === 'function') {
+                    window.Modal.show();
+                } else {
+                    console.log('Login required');
+                    alert('Please login to access premium features');
+                }
+                return;
+            }
+            
+            // Show payment modal for logged-in users
+            PaymentAuth.showPaymentModal();
+            return false;
+        }
+    };
+    
+    /**
      * Update UI based on payment status
      */
     static updateUI() {
-        // Update premium elements visibility
+        console.log('Updating UI based on payment status. isPaid:', this.isPaid);
+        
+        // Update premium elements visibility and functionality
         document.querySelectorAll('[data-requires-premium="true"]').forEach(element => {
             if (this.isPaid) {
                 element.classList.remove('premium-disabled');
+                
+                // If it's an anchor tag with data-href, restore the href
+                if (element.tagName === 'A' && element.hasAttribute('data-href')) {
+                    element.href = element.getAttribute('data-href');
+                }
+                
+                // For buttons, enable them
+                if (element.tagName === 'BUTTON') {
+                    element.disabled = false;
+                }
             } else {
                 element.classList.add('premium-disabled');
+                
+                // For anchor tags, remove the href to prevent navigation
+                if (element.tagName === 'A' && element.hasAttribute('href')) {
+                    element.setAttribute('data-href', element.getAttribute('href'));
+                    element.removeAttribute('href');
+                }
+                
+                // For buttons, don't disable as we want the click handler to run
+                // but we can add visual cues via the premium-disabled class
             }
         });
         
@@ -173,6 +282,77 @@ class PaymentAuth {
         
         // Update user dropdown menu if exists
         this.updateUserDropdown();
+        
+        // Add CSS for premium-disabled elements if not already added
+        this.addPremiumStyles();
+    }
+    
+    /**
+     * Add CSS styles for premium features
+     */
+    static addPremiumStyles() {
+        // Check if styles already exist
+        if (document.getElementById('premium-styles')) return;
+        
+        const styleEl = document.createElement('style');
+        styleEl.id = 'premium-styles';
+        
+        styleEl.innerHTML = `
+            .premium-disabled {
+                position: relative;
+                cursor: not-allowed !important;
+                opacity: 0.8;
+            }
+            
+            /* Add a crown icon overlay */
+            .premium-disabled::before {
+                content: "👑";
+                position: absolute;
+                top: -8px;
+                right: -8px;
+                background: #FFD700;
+                color: #000;
+                font-size: 12px;
+                padding: 2px 4px;
+                border-radius: 50%;
+                z-index: 10;
+                cursor: pointer;
+            }
+            
+            .premium-disabled::after {
+                content: "Premium Feature";
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background: rgba(0, 0, 0, 0.7);
+                color: white;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+                z-index: 5;
+            }
+            
+            .premium-disabled:hover::after {
+                opacity: 1;
+            }
+            
+            /* Style for premium badge */
+            .premium-badge {
+                display: inline-block;
+                background: linear-gradient(45deg, #FFD700, #FFA500);
+                color: #000;
+                padding: 3px 8px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+        `;
+        
+        document.head.appendChild(styleEl);
     }
     
     /**
@@ -218,6 +398,9 @@ class PaymentAuth {
         if (!window.Auth || !window.Auth.isLoggedIn) {
             if (window.Modal && typeof window.Modal.show === 'function') {
                 window.Modal.show();
+                return;
+            } else {
+                alert('Please login first');
                 return;
             }
         }
@@ -301,6 +484,10 @@ class PaymentAuth {
         // Show the modal
         paymentModal.style.display = 'block';
     }
+    
+    // Rest of the code remains the same...
+    
+    /* The rest of the PaymentAuth class implementation continues here */
     
     /**
      * Add payment modal styles
@@ -768,14 +955,3 @@ class PaymentAuth {
         }
     }
 }
-
-// Initialize the PaymentAuth service when the page loads
-document.addEventListener('DOMContentLoaded', () => {
-    // Wait a short time to ensure Auth is loaded first
-    setTimeout(() => {
-        PaymentAuth.init();
-    }, 1000);
-});
-
-// Expose PaymentAuth globally
-window.PaymentAuth = PaymentAuth;
