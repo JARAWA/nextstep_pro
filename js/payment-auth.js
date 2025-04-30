@@ -276,7 +276,7 @@ window.PaymentAuth = PaymentAuth;
             return false;
         }
     }
-    }
+    };
     
     /**
      * Add CSS styles for premium features
