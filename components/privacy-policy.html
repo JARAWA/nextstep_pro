@@ -4,141 +4,211 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Learn how NextStep Educational Services collects, uses, and protects your personal information. Our privacy policy ensures transparency and control over your data.">
-    <link rel="canonical" href="https://nextstepedu.co.in/components/privacy-policy.html" />
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <title>Privacy Policy | NextStep Guidance</title>
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/modal.css">
-    <link rel="stylesheet" href="css/responsive.css">
     <style>
-        /* Policy page specific styles */
+        :root {
+            --primary-color: #006B6B;
+            --secondary-color: #00a1a1;
+            --accent-color: #ffc107;
+            --text-color: #333;
+            --light-text: #666;
+            --background-color: #fff;
+            --light-bg: #f9f9f9;
+            --border-color: #eee;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--background-color);
+        }
+        
+        .top-bar {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 0;
+            text-align: center;
+        }
+        
+        .logo {
+            max-width: 180px;
+            height: auto;
+            margin: 15px 0;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px;
+            background-color: var(--light-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
         .policy-container {
             max-width: 1000px;
-            margin: 40px auto;
-            padding: 0 20px;
+            margin: 0 auto;
+            padding: 40px 20px;
         }
         
         .policy-header {
             text-align: center;
             margin-bottom: 40px;
             padding-bottom: 20px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--border-color);
         }
         
         .policy-header h1 {
-            color: var(--primary-color, #006B6B);
+            color: var(--primary-color);
+            font-size: 2.2rem;
             margin-bottom: 10px;
         }
         
         .last-updated {
-            color: #666;
+            color: var(--light-text);
             font-style: italic;
             font-size: 0.9rem;
-        }
-        
-        .policy-content h2 {
-            color: var(--primary-color, #006B6B);
-            margin: 30px 0 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .policy-content h3 {
-            color: #333;
-            margin: 25px 0 15px;
-        }
-        
-        .policy-content p {
-            margin-bottom: 15px;
-            line-height: 1.6;
-        }
-        
-        .policy-content ul, .policy-content ol {
-            margin-bottom: 20px;
-            padding-left: 20px;
-        }
-        
-        .policy-content li {
-            margin-bottom: 10px;
-            line-height: 1.6;
-        }
-        
-        .policy-content a {
-            color: var(--primary-color, #006B6B);
-            text-decoration: none;
-        }
-        
-        .policy-content a:hover {
-            text-decoration: underline;
-        }
-        
-        .contact-section {
-            background-color: #f9f9f9;
-            padding: 20px;
-            border-radius: 5px;
-            margin: 40px 0;
-        }
-        
-        .contact-section h3 {
-            margin-top: 0;
         }
         
         .print-button {
             display: inline-block;
             background-color: #eee;
             color: #333;
-            padding: 8px 15px;
+            padding: 10px 20px;
             border-radius: 4px;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
             text-decoration: none;
+            font-weight: 500;
             transition: all 0.3s ease;
         }
         
         .print-button:hover {
             background-color: #ddd;
+            transform: translateY(-2px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
         }
         
         .print-button i {
-            margin-right: 5px;
+            margin-right: 8px;
+        }
+        
+        .policy-content h2 {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+            margin: 40px 0 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .policy-content h3 {
+            color: var(--secondary-color);
+            font-size: 1.4rem;
+            margin: 30px 0 15px;
+        }
+        
+        .policy-content p {
+            margin-bottom: 20px;
+            line-height: 1.7;
+        }
+        
+        .policy-content ul, .policy-content ol {
+            margin-bottom: 25px;
+            padding-left: 25px;
+        }
+        
+        .policy-content li {
+            margin-bottom: 12px;
+            line-height: 1.7;
+        }
+        
+        .policy-content a {
+            color: var(--primary-color);
+            text-decoration: none;
+            border-bottom: 1px dotted var(--primary-color);
+            transition: all 0.3s ease;
+        }
+        
+        .policy-content a:hover {
+            color: var(--secondary-color);
+            border-bottom: 1px solid var(--secondary-color);
+        }
+        
+        .contact-section {
+            background-color: var(--light-bg);
+            padding: 25px;
+            border-radius: 8px;
+            margin: 50px 0 30px;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .contact-section h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+        
+        strong {
+            color: var(--primary-color);
+        }
+        
+        footer {
+            background-color: var(--light-bg);
+            text-align: center;
+            padding: 20px;
+            margin-top: 30px;
+            border-top: 1px solid var(--border-color);
+            color: var(--light-text);
+            font-size: 0.9rem;
         }
         
         @media print {
-            .header-container, .nav-container, .footer-container, .print-button {
+            .top-bar, header, .print-button, footer {
                 display: none;
             }
             
             .policy-container {
                 margin: 0;
                 max-width: 100%;
+                padding: 0;
             }
         }
         
         @media (max-width: 768px) {
             .policy-container {
-                margin: 20px auto;
+                padding: 20px 15px;
             }
             
-            .policy-header {
-                margin-bottom: 30px;
+            .policy-header h1 {
+                font-size: 1.8rem;
             }
             
             .policy-content h2 {
-                margin: 25px 0 10px;
+                font-size: 1.5rem;
+                margin: 30px 0 15px;
+            }
+            
+            .policy-content h3 {
+                font-size: 1.2rem;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Include Header -->
-    <div id="header-container"></div>
-
-    <!-- Include Navigation -->
-    <div id="nav-container"></div>
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <p>NextStep Educational Services - Your Guide to Academic Success</p>
+    </div>
+    
+    <!-- Header -->
+    <header>
+        <img src="/api/placeholder/180/60" alt="NextStep Logo" class="logo">
+    </header>
 
     <!-- Policy Content -->
     <div class="policy-container">
@@ -152,132 +222,96 @@
         </div>
         
         <div class="policy-content">
-## Introduction
+            <h2>Introduction</h2>
+            <p>NextStep Educational Services ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website (nextstepedu.co.in) and services, including our college preference list generators for JOSAA, MHT-CET, and NEET-UG counselling.</p>
+            <p>By accessing or using our services, you consent to the collection, use, and disclosure of your information as described in this Privacy Policy. If you do not agree with our policies and practices, please do not use our services.</p>
 
-NextStep Educational Services ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website (nextstepedu.co.in) and services, including our college preference list generators for JOSAA, MHT-CET, and NEET-UG counselling.
+            <h2>Information We Collect</h2>
+            
+            <h3>Personal Information</h3>
+            <p>We may collect the following types of personal information:</p>
+            <ul>
+                <li><strong>Account Information</strong>: Name, email address, phone number, and password when you create an account.</li>
+                <li><strong>Educational Information</strong>: Examination ranks, educational preferences, and other academic data you provide.</li>
+                <li><strong>Payment Information</strong>: When you purchase premium services, we collect payment details through our payment processor, Razorpay. We do not store complete credit card or debit card information on our servers.</li>
+                <li><strong>Communication Data</strong>: Information you provide when contacting us, such as email correspondence or chat messages.</li>
+                <li><strong>Device and Usage Information</strong>: IP address, browser type, device identifiers, operating system, and usage patterns when you visit our website.</li>
+            </ul>
 
-By accessing or using our services, you consent to the collection, use, and disclosure of your information as described in this Privacy Policy. If you do not agree with our policies and practices, please do not use our services.
+            <h3>How We Collect Information</h3>
+            <p>We collect information in the following ways:</p>
+            <ul>
+                <li><strong>Direct Collection</strong>: Information you provide when creating an account, submitting forms, making payments, or communicating with us.</li>
+                <li><strong>Automated Collection</strong>: Through cookies, web beacons, and similar technologies when you visit our website.</li>
+                <li><strong>Third-Party Sources</strong>: We may receive information from third-party services, such as educational institutions or payment processors.</li>
+            </ul>
 
-## Information We Collect
+            <h2>How We Use Your Information</h2>
+            <p>We use the information we collect for various purposes, including to:</p>
+            <ul>
+                <li>Provide, maintain, and improve our services</li>
+                <li>Process transactions and send related information</li>
+                <li>Generate personalized college preference lists and recommendations</li>
+                <li>Respond to your inquiries and provide customer support</li>
+                <li>Send administrative information, such as updates to our terms and policies</li>
+                <li>Send marketing communications, if you have opted in to receive them</li>
+                <li>Monitor and analyze usage patterns and trends</li>
+                <li>Detect, prevent, and address technical issues and fraudulent activities</li>
+                <li>Comply with legal obligations</li>
+            </ul>
 
-### Personal Information
+            <h2>Information Sharing and Disclosure</h2>
+            <p>We may share your information with the following categories of third parties:</p>
+            <ul>
+                <li><strong>Service Providers</strong>: Third-party vendors who perform services on our behalf, such as payment processing, data analysis, email delivery, and customer service.</li>
+                <li><strong>Educational Partners</strong>: With your consent, we may share information with educational institutions or counseling services.</li>
+                <li><strong>Legal Requirements</strong>: We may disclose information if required by law, court order, or governmental authority.</li>
+                <li><strong>Business Transfers</strong>: In connection with a merger, acquisition, or sale of assets, your information may be transferred as a business asset.</li>
+            </ul>
+            <p>We do not sell your personal information to third parties.</p>
 
-We may collect the following types of personal information:
+            <h2>Data Security</h2>
+            <p>We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the Internet or electronic storage is 100% secure, and we cannot guarantee absolute security.</p>
 
-- **Account Information**: Name, email address, phone number, and password when you create an account.
-- **Educational Information**: Examination ranks, educational preferences, and other academic data you provide.
-- **Payment Information**: When you purchase premium services, we collect payment details through our payment processor, Razorpay. We do not store complete credit card or debit card information on our servers.
-- **Communication Data**: Information you provide when contacting us, such as email correspondence or chat messages.
-- **Device and Usage Information**: IP address, browser type, device identifiers, operating system, and usage patterns when you visit our website.
+            <h2>Your Rights and Choices</h2>
+            <p>You have certain rights and choices regarding your personal information:</p>
+            <ul>
+                <li><strong>Account Information</strong>: You can review and update your account information by logging into your account.</li>
+                <li><strong>Communication Preferences</strong>: You can opt-out of marketing emails by following the unsubscribe instructions in the emails.</li>
+                <li><strong>Cookies</strong>: Most web browsers allow you to control cookies through their settings. However, refusing cookies may limit your ability to use certain features of our services.</li>
+                <li><strong>Data Access and Portability</strong>: You can request a copy of your personal information that we hold.</li>
+                <li><strong>Data Deletion</strong>: You can request the deletion of your account and associated personal information.</li>
+            </ul>
+            <p>To exercise these rights, please contact us using the information provided at the end of this Privacy Policy.</p>
 
-### How We Collect Information
+            <h2>Data Retention</h2>
+            <p>We retain your personal information for as long as necessary to fulfill the purposes outlined in this Privacy Policy, unless a longer retention period is required or permitted by law. When we no longer need your personal information, we will securely delete or anonymize it.</p>
 
-We collect information in the following ways:
+            <h2>Children's Privacy</h2>
+            <p>Our services are not intended for individuals under 16 years of age. We do not knowingly collect personal information from children under 16. If you are a parent or guardian and believe your child has provided us with personal information, please contact us.</p>
 
-- **Direct Collection**: Information you provide when creating an account, submitting forms, making payments, or communicating with us.
-- **Automated Collection**: Through cookies, web beacons, and similar technologies when you visit our website.
-- **Third-Party Sources**: We may receive information from third-party services, such as educational institutions or payment processors.
+            <h2>Third-Party Links and Services</h2>
+            <p>Our services may contain links to third-party websites and services. This Privacy Policy does not apply to such third-party content, and we are not responsible for their privacy practices. We encourage you to review the privacy policies of those third parties.</p>
 
-## How We Use Your Information
+            <h2>Changes to this Privacy Policy</h2>
+            <p>We may update this Privacy Policy from time to time. The updated version will be indicated by an updated "Last Updated" date. We encourage you to review this Privacy Policy periodically.</p>
 
-We use the information we collect for various purposes, including to:
+            <h2>International Data Transfers</h2>
+            <p>Your information may be transferred to and processed in countries other than your country of residence. These countries may have different data protection laws. We will take appropriate measures to ensure that your personal information remains protected in accordance with this Privacy Policy.</p>
 
-- Provide, maintain, and improve our services
-- Process transactions and send related information
-- Generate personalized college preference lists and recommendations
-- Respond to your inquiries and provide customer support
-- Send administrative information, such as updates to our terms and policies
-- Send marketing communications, if you have opted in to receive them
-- Monitor and analyze usage patterns and trends
-- Detect, prevent, and address technical issues and fraudulent activities
-- Comply with legal obligations
-
-## Information Sharing and Disclosure
-
-We may share your information with the following categories of third parties:
-
-- **Service Providers**: Third-party vendors who perform services on our behalf, such as payment processing, data analysis, email delivery, and customer service.
-- **Educational Partners**: With your consent, we may share information with educational institutions or counseling services.
-- **Legal Requirements**: We may disclose information if required by law, court order, or governmental authority.
-- **Business Transfers**: In connection with a merger, acquisition, or sale of assets, your information may be transferred as a business asset.
-
-We do not sell your personal information to third parties.
-
-## Data Security
-
-We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the Internet or electronic storage is 100% secure, and we cannot guarantee absolute security.
-
-## Your Rights and Choices
-
-You have certain rights and choices regarding your personal information:
-
-- **Account Information**: You can review and update your account information by logging into your account.
-- **Communication Preferences**: You can opt-out of marketing emails by following the unsubscribe instructions in the emails.
-- **Cookies**: Most web browsers allow you to control cookies through their settings. However, refusing cookies may limit your ability to use certain features of our services.
-- **Data Access and Portability**: You can request a copy of your personal information that we hold.
-- **Data Deletion**: You can request the deletion of your account and associated personal information.
-
-To exercise these rights, please contact us using the information provided at the end of this Privacy Policy.
-
-## Data Retention
-
-We retain your personal information for as long as necessary to fulfill the purposes outlined in this Privacy Policy, unless a longer retention period is required or permitted by law. When we no longer need your personal information, we will securely delete or anonymize it.
-
-## Children's Privacy
-
-Our services are not intended for individuals under 16 years of age. We do not knowingly collect personal information from children under 16. If you are a parent or guardian and believe your child has provided us with personal information, please contact us.
-
-## Third-Party Links and Services
-
-Our services may contain links to third-party websites and services. This Privacy Policy does not apply to such third-party content, and we are not responsible for their privacy practices. We encourage you to review the privacy policies of those third parties.
-
-## Changes to this Privacy Policy
-
-We may update this Privacy Policy from time to time. The updated version will be indicated by an updated "Last Updated" date. We encourage you to review this Privacy Policy periodically.
-
-## International Data Transfers
-
-Your information may be transferred to and processed in countries other than your country of residence. These countries may have different data protection laws. We will take appropriate measures to ensure that your personal information remains protected in accordance with this Privacy Policy.
-
-## Contact Us
-
-If you have any questions or concerns about this Privacy Policy or our privacy practices, please contact us at:
-
-**NextStep Educational Services**  
-Email: nextstep.india1@gmail.com  
-WhatsApp Support: +91 9420444009
+            <div class="contact-section">
+                <h2>Contact Us</h2>
+                <p>If you have any questions or concerns about this Privacy Policy or our privacy practices, please contact us at:</p>
+                <p><strong>NextStep Educational Services</strong><br>
+                Email: <a href="mailto:nextstep.india1@gmail.com">nextstep.india1@gmail.com</a><br>
+                WhatsApp Support: <a href="tel:+919420444009">+91 9420444009</a></p>
+            </div>
         </div>
-        
-    <!-- Include Footer -->
-    <div id="footer-container"></div>
-
-    <!-- Scripts -->
-    <script type="module">
-      // Import the functions you need from the SDKs you need
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
-      import { getAuth } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
-      import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-analytics.js";
-
-      // Your web app's Firebase configuration
-      const firebaseConfig = {
-        apiKey: "AIzaSyC7tvZe9NeHRhYuTVrQnkaSG7Nkj3ZS40U",
-        authDomain: "nextstep-log.firebaseapp.com",
-        projectId: "nextstep-log",
-        storageBucket: "nextstep-log.firebasestorage.app",
-        messagingSenderId: "9308831285",
-        appId: "1:9308831285:web:d55ed6865804c50f743b7c",
-        measurementId: "G-BPGP3TBN3N"
-      };
-
-      // Initialize Firebase
-      const app = initializeApp(firebaseConfig);
-      const auth = getAuth(app);
-      const analytics = getAnalytics(app);
-
-      // Export auth for use in other scripts
-      window.firebaseAuth = auth;
-    </script>
-    <script type="module" src="js/main.js"></script>
-    <script type="module" src="js/auth/index.js"></script>
+    </div>
+    
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2025 NextStep Educational Services. All rights reserved.</p>
+    </footer>
 </body>
 </html>
