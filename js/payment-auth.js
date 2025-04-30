@@ -105,6 +105,45 @@ window.PaymentAuth = PaymentAuth;
                             }
                         }
                     });
+                
+                // Update user document
+                const userRef = db.collection('users').doc(window.Auth.user.uid);
+                transaction.update(userRef, {
+                    isPaid: true,
+                    paymentExpiry: expiryDate.toISOString(),
+                    verificationCode: code,
+                    verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    paymentHistory: firebase.firestore.FieldValue.arrayUnion({
+                        type: 'verification_code',
+                        code: code,
+                        timestamp: now.toISOString(),
+                        expiryDate: expiryDate.toISOString()
+                    })
+                });
+                
+                // Save expiry date for local use
+                this.paymentExpiry = expiryDate.toISOString();
+                return expiryDate.toISOString();
+            });
+            
+            // Code verification successful
+            this.isPaid = true;
+            
+            // Store in localStorage for backup access
+            this.storePaymentData();
+            
+            // Update UI
+            this.updateUI();
+            
+            // Close the payment modal
+            const paymentModal = document.getElementById('paymentModal');
+            if (paymentModal) {
+                paymentModal.style.display = 'none';
+            }
+            
+            if (window.showToast) {
+                window.showToast('Verification successful! Premium features activated.', 'success');
+            }
                 }
             });
             
@@ -275,7 +314,6 @@ window.PaymentAuth = PaymentAuth;
             PaymentAuth.showPaymentModal();
             return false;
         }
-    }
     };
     
     /**
@@ -946,18 +984,3 @@ window.PaymentAuth = PaymentAuth;
                     usedCount: firebase.firestore.FieldValue.increment(1),
                     usedBy: firebase.firestore.FieldValue.arrayUnion(window.Auth.user.uid),
                     lastUsedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                
-                // Update user document
-                const userRef = db.collection('users').doc(window.Auth.user.uid);
-                transaction.update(userRef, {
-                    isPaid: true,
-                    paymentExpiry: expiryDate.toISOString(),
-                    verificationCode: code,
-                    verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    paymentHistory: firebase.firestore.FieldValue.arrayUnion({
-                        type: 'verification_code',
-                        code: code,
-                        timestamp: now.toISOString(),
-                        expiryDate: expiryDate.toISOString()
-                    })
