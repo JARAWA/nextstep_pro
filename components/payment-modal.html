@@ -1,0 +1,451 @@
+<div id="paymentModal" class="modal">
+    <div class="modal-content payment-modal-content">
+        <span class="close">&times;</span>
+        
+        <!-- Payment Form -->
+        <div id="paymentForm" class="payment-form active">
+            <h2><i class="fas fa-crown"></i> Upgrade to Premium</h2>
+            <p class="form-subtitle">Unlock all premium features for your academic journey</p>
+            
+            <!-- Plan Selection -->
+            <div class="plan-selection">
+                <div class="plan-option selected" data-plan="monthly" onclick="PaymentModal.selectPlan('monthly', this)">
+                    <h3>1 Month Plan</h3>
+                    <div class="plan-price">₹499</div>
+                    <div class="plan-features">
+                        <p><i class="fas fa-check"></i> Full access to all tools</p>
+                        <p><i class="fas fa-check"></i> Unlimited preference lists</p>
+                        <p><i class="fas fa-check"></i> Priority support</p>
+                    </div>
+                    <div class="best-value-tag">Most Popular</div>
+                </div>
+                
+                <div class="plan-option" data-plan="annual" onclick="PaymentModal.selectPlan('annual', this)">
+                    <h3>1 Year Plan</h3>
+                    <div class="plan-price">₹999</div>
+                    <div class="plan-discount">Save 83%</div>
+                    <div class="plan-features">
+                        <p><i class="fas fa-check"></i> All monthly features</p>
+                        <p><i class="fas fa-check"></i> College comparison tools</p>
+                        <p><i class="fas fa-check"></i> Expert consultation</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Coupon Code -->
+            <div class="coupon-section">
+                <div class="coupon-toggle" onclick="PaymentModal.toggleCoupon()">
+                    <i class="fas fa-tag"></i> Have a coupon code? <span id="couponToggleText">Click here</span>
+                </div>
+                <div class="coupon-input-container" id="couponContainer" style="display: none;">
+                    <div class="coupon-input-group">
+                        <input type="text" id="couponCode" placeholder="Enter coupon code">
+                        <button class="btn coupon-btn" onclick="PaymentModal.applyCoupon()">Apply</button>
+                    </div>
+                    <div class="coupon-message" id="couponMessage"></div>
+                </div>
+            </div>
+            
+            <!-- Payment Summary -->
+            <div class="payment-summary">
+                <div class="summary-row">
+                    <div class="summary-label">Plan:</div>
+                    <div class="summary-value" id="summaryPlan">1 Month Premium</div>
+                </div>
+                <div class="summary-row">
+                    <div class="summary-label">Price:</div>
+                    <div class="summary-value" id="summaryPrice">₹499</div>
+                </div>
+                <div class="summary-row coupon-discount" id="discountRow" style="display: none;">
+                    <div class="summary-label">Discount:</div>
+                    <div class="summary-value" id="summaryDiscount">-₹0</div>
+                </div>
+                <div class="summary-row total-row">
+                    <div class="summary-label">Total:</div>
+                    <div class="summary-value" id="summaryTotal">₹499</div>
+                </div>
+            </div>
+            
+            <!-- Payment Button -->
+            <div class="payment-actions">
+                <button class="btn payment-btn" onclick="PaymentModal.initiatePayment()">
+                    <i class="fas fa-lock"></i> Proceed to Secure Payment
+                </button>
+                <div class="payment-security">
+                    <i class="fas fa-shield-alt"></i> Secure payment via Razorpay
+                </div>
+            </div>
+            
+            <!-- Alternative Option -->
+            <div class="redemption-option">
+                <p>Have a redemption code? <a href="#" onclick="PaymentModal.showRedemptionForm()">Redeem here</a></p>
+            </div>
+        </div>
+        
+        <!-- Redemption Form -->
+        <div id="redemptionForm" class="payment-form">
+            <h2><i class="fas fa-ticket-alt"></i> Redeem Code</h2>
+            <p class="form-subtitle">Enter your redemption code to activate premium access</p>
+            
+            <div class="form-group">
+                <label for="redemptionCode">Redemption Code</label>
+                <input type="text" id="redemptionCode" placeholder="Enter your code" required>
+                <div class="error-message" id="redemptionCodeError"></div>
+            </div>
+            
+            <button class="btn redemption-btn" onclick="PaymentModal.redeemCode()">
+                <i class="fas fa-check-circle"></i> Activate Premium
+            </button>
+            
+            <div class="redemption-footer">
+                <p>Want to purchase instead? <a href="#" onclick="PaymentModal.showPaymentForm()">View payment plans</a></p>
+            </div>
+        </div>
+        
+        <!-- Loading State -->
+        <div id="paymentLoading" class="payment-form payment-loading">
+            <div class="loader"></div>
+            <p>Processing your request...</p>
+        </div>
+        
+        <!-- Success Message -->
+        <div id="paymentSuccess" class="payment-form payment-success">
+            <div class="success-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h2>Payment Successful!</h2>
+            <p>Thank you for upgrading to premium. Your account has been activated.</p>
+            <button class="btn success-btn" onclick="PaymentModal.closeModal()">
+                <i class="fas fa-magic"></i> Start Using Premium Features
+            </button>
+        </div>
+        
+        <!-- Error Message -->
+        <div id="paymentError" class="payment-form payment-error">
+            <div class="error-icon">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <h2>Payment Failed</h2>
+            <p id="errorMessage">We encountered an issue processing your payment. Please try again later.</p>
+            <button class="btn retry-btn" onclick="PaymentModal.showPaymentForm()">
+                <i class="fas fa-redo"></i> Try Again
+            </button>
+            <p class="help-text">Need assistance? <a href="mailto:nextstep.india1@gmail.com">Contact support</a></p>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Payment Modal Styles */
+.payment-modal-content {
+    max-width: 600px;
+    padding: 30px;
+}
+
+.payment-form {
+    display: none;
+}
+
+.payment-form.active {
+    display: block;
+}
+
+.form-subtitle {
+    text-align: center;
+    color: #666;
+    margin-bottom: 25px;
+}
+
+/* Plan Selection */
+.plan-selection {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.plan-option {
+    flex: 1;
+    border: 2px solid #eee;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.plan-option:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.plan-option.selected {
+    border-color: #006B6B;
+    background-color: #f9ffff;
+}
+
+.plan-option h3 {
+    margin-top: 0;
+    color: #333;
+    font-size: 18px;
+}
+
+.plan-price {
+    font-size: 28px;
+    font-weight: 600;
+    color: #006B6B;
+    margin: 10px 0;
+}
+
+.plan-discount {
+    background-color: #ffc107;
+    color: #000;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    display: inline-block;
+    margin-bottom: 10px;
+}
+
+.plan-features {
+    margin-top: 15px;
+    text-align: left;
+}
+
+.plan-features p {
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.plan-features i {
+    color: #006B6B;
+    margin-right: 5px;
+}
+
+.best-value-tag {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background-color: #006B6B;
+    color: white;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 20px;
+}
+
+/* Coupon Section */
+.coupon-section {
+    margin-bottom: 25px;
+}
+
+.coupon-toggle {
+    text-align: center;
+    color: #006B6B;
+    cursor: pointer;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.coupon-toggle:hover {
+    text-decoration: underline;
+}
+
+.coupon-input-container {
+    margin-top: 10px;
+}
+
+.coupon-input-group {
+    display: flex;
+}
+
+.coupon-input-group input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px 0 0 4px;
+    font-family: 'Poppins', sans-serif;
+}
+
+.coupon-btn {
+    border-radius: 0 4px 4px 0;
+    padding: 10px 15px;
+    background-color: #006B6B;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.coupon-message {
+    margin-top: 5px;
+    font-size: 12px;
+}
+
+.coupon-message.success {
+    color: #28a745;
+}
+
+.coupon-message.error {
+    color: #dc3545;
+}
+
+/* Payment Summary */
+.payment-summary {
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 25px;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.summary-row:last-child {
+    margin-bottom: 0;
+}
+
+.total-row {
+    border-top: 1px solid #ddd;
+    padding-top: 10px;
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.coupon-discount {
+    color: #28a745;
+}
+
+/* Payment Actions */
+.payment-actions {
+    margin-bottom: 20px;
+}
+
+.payment-btn {
+    width: 100%;
+    padding: 12px;
+    background-color: #006B6B;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.payment-btn:hover {
+    background-color: #005555;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+}
+
+.payment-security {
+    text-align: center;
+    color: #666;
+    font-size: 12px;
+    margin-top: 10px;
+}
+
+/* Redemption Option */
+.redemption-option, .redemption-footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px;
+}
+
+.redemption-option a, .redemption-footer a {
+    color: #006B6B;
+    text-decoration: none;
+}
+
+.redemption-option a:hover, .redemption-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Loading State */
+.payment-loading {
+    text-align: center;
+    padding: 40px 0;
+}
+
+.loader {
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #006B6B;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 2s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Success/Error States */
+.payment-success, .payment-error {
+    text-align: center;
+    padding: 30px 0;
+}
+
+.success-icon, .error-icon {
+    font-size: 60px;
+    margin-bottom: 20px;
+}
+
+.success-icon {
+    color: #28a745;
+}
+
+.error-icon {
+    color: #dc3545;
+}
+
+.success-btn, .retry-btn {
+    padding: 12px 25px;
+    margin-top: 20px;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.success-btn {
+    background-color: #28a745;
+    color: white;
+}
+
+.retry-btn {
+    background-color: #006B6B;
+    color: white;
+}
+
+.help-text {
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .plan-selection {
+        flex-direction: column;
+    }
+    
+    .plan-option {
+        margin-bottom: 15px;
+    }
+    
+    .best-value-tag {
+        position: static;
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+}
+</style>
