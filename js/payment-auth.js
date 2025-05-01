@@ -20,8 +20,11 @@ class PaymentAuth {
         console.log('Initializing Payment Authentication Service');
         
         // Prevent double initialization
-        if (this.initialized) return;
-        this.initialized = true;
+        if (this.initialized) {
+        console.log('PaymentAuth already initialized, skipping');
+        return;
+    }
+    this.initialized = true;
         
         try {
             // Load the dedicated payment modal
@@ -68,24 +71,28 @@ class PaymentAuth {
  * Load payment modal HTML
  */
 static loadPaymentModal() {
-    fetch('components/payment-modal.html')
-        .then(response => response.text())
-        .then(html => {
-            // Add the payment modal to the document
-            const modalContainer = document.createElement('div');
-            modalContainer.innerHTML = html;
-            document.body.appendChild(modalContainer.firstChild);
-            
-            console.log('Payment modal HTML loaded successfully');
-            
-            // Initialize PaymentModal if available
-            if (window.PaymentModal && typeof window.PaymentModal.init === 'function') {
-                window.PaymentModal.init();
-            }
-        })
-        .catch(error => {
-            console.error('Error loading payment modal HTML:', error);
-        });
+    return new Promise((resolve, reject) => {
+        fetch('components/payment-modal.html')
+            .then(response => response.text())
+            .then(html => {
+                // Add the payment modal to the document
+                const modalContainer = document.createElement('div');
+                modalContainer.innerHTML = html;
+                document.body.appendChild(modalContainer.firstChild);
+                
+                console.log('Payment modal HTML loaded successfully');
+                
+                // Initialize PaymentModal if available
+                if (window.PaymentModal && typeof window.PaymentModal.init === 'function') {
+                    window.PaymentModal.init();
+                }
+                resolve();
+            })
+            .catch(error => {
+                console.error('Error loading payment modal HTML:', error);
+                reject(error);
+            });
+    });
 }
     
     /**
@@ -516,33 +523,34 @@ static loadPaymentModal() {
     /**
      * Show payment modal with options
      */
-    static showPaymentModal() {
-        // Check if user is logged in
-        if (!window.Auth || !window.Auth.isLoggedIn) {
-            if (window.Modal && typeof window.Modal.show === 'function') {
-                window.Modal.show();
-                return;
-            } else {
-                alert('Please login first');
-                return;
-            }
-        }
-        
-        // Look for the dedicated payment modal first
-        let paymentModal = document.getElementById('paymentModal');
-        
-        if (paymentModal) {
-            // Use the dedicated payment modal if it exists
-            paymentModal.style.display = 'block';
-            
-            // Initialize PaymentModal if available
-            if (window.PaymentModal && typeof window.PaymentModal.openModal === 'function') {
-                window.PaymentModal.openModal();
-            }
-            
-            console.log('Showing dedicated payment modal');
+static showPaymentModal() {
+    // Check if user is logged in
+    if (!window.Auth || !window.Auth.isLoggedIn) {
+        if (window.Modal && typeof window.Modal.show === 'function') {
+            window.Modal.show();
+            return;
+        } else {
+            alert('Please login first');
             return;
         }
+    }
+    
+    // Look for the dedicated payment modal first
+    let paymentModal = document.getElementById('paymentModal');
+    
+    if (paymentModal) {
+        // If PaymentModal handler is available, use it instead
+        if (window.PaymentModal && typeof window.PaymentModal.openModal === 'function') {
+            console.log('Using dedicated PaymentModal.openModal()');
+            window.PaymentModal.openModal();
+            return;
+        }
+        
+        // Otherwise, just show the modal directly
+        paymentModal.style.display = 'block';
+        console.log('Showing dedicated payment modal directly');
+        return;
+    }
         
         // Fall back to the dynamic creation if needed
         paymentModal = document.createElement('div');
