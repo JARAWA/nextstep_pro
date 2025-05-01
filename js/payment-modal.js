@@ -10,9 +10,7 @@ import {
     doc, 
     updateDoc, 
     increment,
-    arrayUnion,
-    // Added Firestore error codes for better error handling
-    FirebaseError
+    arrayUnion
 } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
 // PaymentModal class - handles payment modal functionality
