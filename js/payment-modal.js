@@ -23,6 +23,13 @@ const PaymentModal = {
         closeButtons.forEach(button => {
             button.addEventListener('click', this.closeModal);
         });
+
+            // Make sure payment button has its event listener
+    const paymentBtn = document.querySelector('.payment-btn');
+    if (paymentBtn) {
+        paymentBtn.removeEventListener('click', this.initiatePayment);
+        paymentBtn.addEventListener('click', () => this.initiatePayment());
+    }
         
         // Listen for clicks outside the modal
         window.addEventListener('click', (event) => {
