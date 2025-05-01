@@ -474,7 +474,7 @@ static async redeemCode() {
     this.showLoading();
     
     // Check Firebase availability
-    if (!this.firebaseAvailable || !window.firebase || !window.firebase.firestore) {
+    if (!this.firebaseAvailable || !db) {
         console.warn('Firebase is not available - using localStorage fallback');
         
         // Fallback to localStorage-only mode for testing
@@ -535,159 +535,160 @@ static async redeemCode() {
         
         const userId = currentUser.uid;
         
-        // Using window.firebase directly to avoid function wrapping issues
-        const firestore = window.firebase.firestore();
+        // Use the wrapper functions defined in checkFirebaseStatus
+        const codesCollection = collection('verificationCodes');
+        const codeQuery = query(
+            codesCollection, 
+            where('code', '==', code),
+            where('isActive', '==', true)
+        );
         
-        // Query for verification code (direct API access)
-        firestore.collection('verificationCodes')
-          .where('code', '==', code)
-          .where('isActive', '==', true)
-          .limit(1)
-          .get()
-          .then((querySnapshot) => {
-              if (querySnapshot.empty) {
-                  // No matching code found
-                  this.showRedemptionForm();
-                  if (errorElement) {
-                      errorElement.textContent = 'Invalid or expired redemption code';
-                  }
-                  this.isProcessing = false;
-                  return;
-              }
-              
-              // Get the first (should be only) matching document
-              const codeDoc = querySnapshot.docs[0];
-              const codeData = codeDoc.data();
-              
-              // Check if code has reached max uses
-              if (codeData.usedCount >= codeData.maxUses) {
-                  this.showRedemptionForm();
-                  if (errorElement) {
-                      errorElement.textContent = 'This code has reached its maximum number of uses';
-                  }
-                  this.isProcessing = false;
-                  return;
-              }
-              
-              // Check if user has already used this code
-              let usedBy = [];
-              try {
-                  // Try to parse the usedBy field if it's stored as a JSON string
-                  if (typeof codeData.usedBy === 'string') {
-                      usedBy = JSON.parse(codeData.usedBy);
-                  } else if (Array.isArray(codeData.usedBy)) {
-                      usedBy = codeData.usedBy;
-                  }
-              } catch (e) {
-                  console.error('Error parsing usedBy data:', e);
-                  // Continue with empty array if parsing fails
-              }
-              
-              if (usedBy.includes(userId)) {
-                  this.showRedemptionForm();
-                  if (errorElement) {
-                      errorElement.textContent = 'You have already used this code';
-                  }
-                  this.isProcessing = false;
-                  return;
-              }
-              
-              // Code is valid - process it
-              
-              // Calculate expiry date based on expiryDays field
-              const now = new Date();
-              const expiryDate = new Date(now);
-              expiryDate.setDate(expiryDate.getDate() + (codeData.expiryDays || 30)); // Default to 30 if not specified
-              
-              // Update the code usage in Firestore
-              const codeRef = firestore.collection('verificationCodes').doc(codeDoc.id);
-              
-              // Try to update the code document
-              codeRef.update({
-                  usedCount: window.firebase.firestore.FieldValue.increment(1),
-                  isActive: (codeData.usedCount + 1 < codeData.maxUses)
-              })
-              .then(() => {
-                  // Update user's premium status
-                  firestore.collection('users').doc(userId).update({
-                      isPaid: true,
-                      paymentExpiry: expiryDate.toISOString()
-                  })
-                  .then(() => {
-                      // Update local storage
-                      localStorage.setItem('isPremium', 'true');
-                      localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                      
-                      // Show success
-                      this.showSuccess();
-                      
-                      // Notify system about payment status change
-                      setTimeout(() => {
-                          // Update UI
-                          if (window.PaymentAuth) {
-                              window.PaymentAuth.isPaid = true;
-                              window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
-                              window.PaymentAuth.updateUI();
-                          }
-                          
-                          // Dispatch event
-                          window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                              detail: { 
-                                  isPaid: true,
-                                  expiryDate: expiryDate.toISOString()
-                              }
-                          }));
-                      }, 1000);
-                      
-                      this.isProcessing = false;
-                  })
-                  .catch((userUpdateError) => {
-                      console.error('Error updating user document:', userUpdateError);
-                      
-                      // Fallback to localStorage if database update fails
-                      localStorage.setItem('isPremium', 'true');
-                      localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                      
-                      // Show success anyway since the code was valid
-                      this.showSuccess();
-                      
-                      // Dispatch event
-                      window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                          detail: { 
-                              isPaid: true,
-                              expiryDate: expiryDate.toISOString()
-                          }
-                      }));
-                      
-                      this.isProcessing = false;
-                  });
-              })
-              .catch((codeUpdateError) => {
-                  console.error('Error updating code document:', codeUpdateError);
-                  
-                  // If code is valid but we can't update it, still give access
-                  localStorage.setItem('isPremium', 'true');
-                  localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                  
-                  // Show success
-                  this.showSuccess();
-                  
-                  // Dispatch event
-                  window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                      detail: { 
-                          isPaid: true,
-                          expiryDate: expiryDate.toISOString()
-                      }
-                  }));
-                  
-                  this.isProcessing = false;
-              });
-          })
-          .catch((error) => {
-              console.error('Error querying verification codes:', error);
-              this.showError('Error verifying code. Please try again later.');
-              this.isProcessing = false;
-          });
+        getDocs(codeQuery)
+            .then((querySnapshot) => {
+                if (querySnapshot.empty) {
+                    // No matching code found
+                    this.showRedemptionForm();
+                    if (errorElement) {
+                        errorElement.textContent = 'Invalid or expired redemption code';
+                    }
+                    this.isProcessing = false;
+                    return;
+                }
+                
+                // Get the first (should be only) matching document
+                const codeDoc = querySnapshot.docs[0];
+                const codeData = codeDoc.data();
+                
+                // Check if code has reached max uses
+                if (codeData.usedCount >= codeData.maxUses) {
+                    this.showRedemptionForm();
+                    if (errorElement) {
+                        errorElement.textContent = 'This code has reached its maximum number of uses';
+                    }
+                    this.isProcessing = false;
+                    return;
+                }
+                
+                // Check if user has already used this code
+                let usedBy = [];
+                try {
+                    // Try to parse the usedBy field if it's stored as a JSON string
+                    if (typeof codeData.usedBy === 'string') {
+                        usedBy = JSON.parse(codeData.usedBy);
+                    } else if (Array.isArray(codeData.usedBy)) {
+                        usedBy = codeData.usedBy;
+                    }
+                } catch (e) {
+                    console.error('Error parsing usedBy data:', e);
+                    // Continue with empty array if parsing fails
+                }
+                
+                if (usedBy.includes(userId)) {
+                    this.showRedemptionForm();
+                    if (errorElement) {
+                        errorElement.textContent = 'You have already used this code';
+                    }
+                    this.isProcessing = false;
+                    return;
+                }
+                
+                // Code is valid - process it
+                
+                // Calculate expiry date based on expiryDays field
+                const now = new Date();
+                const expiryDate = new Date(now);
+                expiryDate.setDate(expiryDate.getDate() + (codeData.expiryDays || 30)); // Default to 30 if not specified
+                
+                // Update the code usage in Firestore using the wrapped functions
+                const codeRef = doc(collection('verificationCodes'), codeDoc.id);
+                
+                // Try to update the code document
+                updateDoc(codeRef, {
+                    usedCount: increment(1),
+                    isActive: (codeData.usedCount + 1 < codeData.maxUses)
+                })
+                .then(() => {
+                    // Update user's premium status
+                    const userRef = doc(collection('users'), userId);
+                    updateDoc(userRef, {
+                        isPaid: true,
+                        paymentExpiry: expiryDate.toISOString()
+                    })
+                    .then(() => {
+                        // Update local storage
+                        localStorage.setItem('isPremium', 'true');
+                        localStorage.setItem('premiumExpiry', expiryDate.toISOString());
+                        
+                        // Show success
+                        this.showSuccess();
+                        
+                        // Notify system about payment status change
+                        setTimeout(() => {
+                            // Update UI
+                            if (window.PaymentAuth) {
+                                window.PaymentAuth.isPaid = true;
+                                window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
+                                window.PaymentAuth.updateUI();
+                            }
+                            
+                            // Dispatch event
+                            window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+                                detail: { 
+                                    isPaid: true,
+                                    expiryDate: expiryDate.toISOString()
+                                }
+                            }));
+                        }, 1000);
+                        
+                        this.isProcessing = false;
+                    })
+                    .catch((userUpdateError) => {
+                        console.error('Error updating user document:', userUpdateError);
+                        
+                        // Fallback to localStorage if database update fails
+                        localStorage.setItem('isPremium', 'true');
+                        localStorage.setItem('premiumExpiry', expiryDate.toISOString());
+                        
+                        // Show success anyway since the code was valid
+                        this.showSuccess();
+                        
+                        // Dispatch event
+                        window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+                            detail: { 
+                                isPaid: true,
+                                expiryDate: expiryDate.toISOString()
+                            }
+                        }));
+                        
+                        this.isProcessing = false;
+                    });
+                })
+                .catch((codeUpdateError) => {
+                    console.error('Error updating code document:', codeUpdateError);
+                    
+                    // If code is valid but we can't update it, still give access
+                    localStorage.setItem('isPremium', 'true');
+                    localStorage.setItem('premiumExpiry', expiryDate.toISOString());
+                    
+                    // Show success
+                    this.showSuccess();
+                    
+                    // Dispatch event
+                    window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+                        detail: { 
+                            isPaid: true,
+                            expiryDate: expiryDate.toISOString()
+                        }
+                    }));
+                    
+                    this.isProcessing = false;
+                });
+            })
+            .catch((error) => {
+                console.error('Error querying verification codes:', error);
+                this.showError('Error verifying code. Please try again later.');
+                this.isProcessing = false;
+            });
     } catch (error) {
         console.error('Error processing redemption code:', error);
         this.showError('Error processing your request. Please try again later.');
