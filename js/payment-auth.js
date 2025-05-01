@@ -632,145 +632,146 @@ static showPaymentModal() {
     /**
      * Add payment modal styles
      */
-    static addPaymentModalStyles() {
-        // Check if styles already exist
-        if (document.getElementById('payment-modal-styles')) return;
+static addPaymentModalStyles() {
+    // Check if styles already exist
+    if (document.getElementById('payment-modal-styles')) return;
+    
+    const styleEl = document.createElement('style');
+    styleEl.id = 'payment-modal-styles';
+    
+    styleEl.innerHTML = `
+        .payment-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+            animation: fadeIn 0.3s ease;
+        }
         
-        const styleEl = document.createElement('style');
-        styleEl.id = 'payment-modal-styles';
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
         
-        styleEl.innerHTML = `
-            .payment-modal {
-                display: none;
-                position: fixed;
-                z-index: 1000;
-                left: 0;
-                top: 0;
-                width: 100%;
-                height: 100%;
-                overflow: auto;
-                background-color: rgba(0, 0, 0, 0.4);
-                animation: fadeIn 0.3s ease;
-            }
-            
-            @keyframes fadeIn {
-                from { opacity: 0; }
-                to { opacity: 1; }
-            }
-            
-            .payment-modal-content {
-                background-color: #ffffff;
-                margin: 5% auto;
-                padding: 30px;
-                border-radius: 8px;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-                width: 90%;
-                max-width: 600px;
-                animation: slideIn 0.3s ease;
-            }
-            
-            @keyframes slideIn {
-                from { transform: translateY(-50px); opacity: 0; }
-                to { transform: translateY(0); opacity: 1; }
-            }
-            
-            .payment-modal-content h2 {
-                color: #333;
-                margin-top: 0;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-            
-            .payment-modal-content h2 i {
-                color: #FFD700;
-            }
-            
-            .payment-options {
-                display: flex;
-                flex-direction: column;
-                gap: 20px;
-                margin-top: 25px;
-            }
-            
-            .payment-option {
-                border: 1px solid #eee;
-                border-radius: 8px;
-                padding: 20px;
-                transition: all 0.3s ease;
-            }
-            
-            .payment-option:hover {
-                border-color: #FFD700;
-                box-shadow: 0 4px 12px rgba(255, 215, 0, 0.1);
-            }
-            
-            .payment-option h3 {
-                margin-top: 0;
-                color: #333;
-            }
-            
-            .payment-btn {
-                background-color: #2D88FF;
-                color: white;
-                border: none;
-                padding: 12px;
-                border-radius: 4px;
-                width: 100%;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                font-weight: bold;
-            }
-            
-            .payment-btn:hover {
-                background-color: #1A73E8;
-                transform: translateY(-2px);
-            }
-            
-            .verification-form {
-                display: flex;
-                gap: 10px;
-                margin-top: 15px;
-            }
-            
-            .verification-form input {
-                flex: 1;
-                padding: 12px;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                font-size: 16px;
-                text-transform: uppercase;
-            }
-            
-            .verification-form input:focus {
-                border-color: #006B6B;
-                outline: none;
-            }
-            
-            .verify-btn {
-                background-color: #006B6B;
-                color: white;
-                border: none;
-                padding: 12px;
-                border-radius: 4px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                font-weight: bold;
-                min-width: 100px;
-            }
-            
-            .verify-btn:hover {
-                background-color: #005757;
-                transform: translateY(-2px);
-            }
-            
-            .error-message {
-                color: #d32f2f;
-                font-size: 14px;
-                margin-top: 10px;
-                min-height: 20px;
-            }
-        `        /* Add these crucial fixes */
+        .payment-modal-content {
+            background-color: #ffffff;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 600px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .payment-modal-content h2 {
+            color: #333;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .payment-modal-content h2 i {
+            color: #FFD700;
+        }
+        
+        .payment-options {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 25px;
+        }
+        
+        .payment-option {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .payment-option:hover {
+            border-color: #FFD700;
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.1);
+        }
+        
+        .payment-option h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .payment-btn {
+            background-color: #2D88FF;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        
+        .payment-btn:hover {
+            background-color: #1A73E8;
+            transform: translateY(-2px);
+        }
+        
+        .verification-form {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .verification-form input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            text-transform: uppercase;
+        }
+        
+        .verification-form input:focus {
+            border-color: #006B6B;
+            outline: none;
+        }
+        
+        .verify-btn {
+            background-color: #006B6B;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            min-width: 100px;
+        }
+        
+        .verify-btn:hover {
+            background-color: #005757;
+            transform: translateY(-2px);
+        }
+        
+        .error-message {
+            color: #d32f2f;
+            font-size: 14px;
+            margin-top: 10px;
+            min-height: 20px;
+        }
+        
+        /* Add these crucial fixes */
         .payment-form {
             display: none;
         }
@@ -794,7 +795,6 @@ static showPaymentModal() {
     
     document.head.appendChild(styleEl);
 }
-
     
     /**
      * Initialize Razorpay payment
