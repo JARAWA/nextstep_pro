@@ -99,7 +99,10 @@ const PaymentModal = {
         // Setup retry button
         const retryButton = paymentModal.querySelector('.retry-btn');
         if (retryButton) {
-            retryButton.addEventListener('click', () => this.showPaymentForm());
+            retryButton.addEventListener('click', () => {
+                console.log('Retry button clicked');
+                this.showPaymentForm();
+            });
         }
         
         console.log('Payment modal initialization completed');
@@ -418,32 +421,42 @@ const PaymentModal = {
     
     // Initiate payment process
     initiatePayment: function() {
+        console.log('Initiating payment process');
         this.showLoading();
         
-        // In a real implementation, you would make an API call to your backend to create an order
-        // Here we simulate the process
+        // Check if Firebase is available before proceeding
+        if (!window.firebase || !window.firebase.auth) {
+            console.error('Firebase is not available - cannot proceed with payment');
+            setTimeout(() => {
+                this.showError('Payment processing is currently unavailable. Our payment system is being upgraded. Please try again later or use a redemption code.');
+            }, 1000);
+            return;
+        }
+        
+        // Get current user before proceeding
+        const currentUser = window.firebase.auth().currentUser;
+        if (!currentUser) {
+            console.error('User not logged in - cannot proceed with payment');
+            setTimeout(() => {
+                this.showError('Please login again before making a payment.');
+            }, 1000);
+            return;
+        }
+        
+        // Continue with simulated payment process
         setTimeout(() => {
-            // Check if we can use window.firebase
-            let firebaseAvailable = false;
             try {
-                firebaseAvailable = !!(window.firebase && window.firebase.auth);
-            } catch (e) {
-                console.error('Firebase not available:', e);
-            }
-            
-            if (!firebaseAvailable) {
-                this.showError('Payment processing is currently unavailable. Please try again later or contact support.');
-                return;
-            }
-            
-            try {
-                // Try to load Razorpay
+                // In a real implementation, call your backend API here
+                // For now, show an appropriate message
+                this.showError('Payment system is currently in testing mode. Please use a redemption code instead.');
+                
+                /* Uncomment this section when ready to implement real payment
                 this.loadRazorpayScript()
                     .then(() => {
-                        // Create a simulated order
+                        // Create payment order
                         const orderData = {
                             id: 'order_' + Math.random().toString(36).substring(2, 15),
-                            amount: this.selectedPlan.totalPrice * 100, // Amount in paise
+                            amount: this.selectedPlan.totalPrice * 100,
                             currency: 'INR',
                             receipt: 'receipt_' + Date.now()
                         };
@@ -452,11 +465,12 @@ const PaymentModal = {
                     })
                     .catch(error => {
                         console.error('Failed to load Razorpay:', error);
-                        this.showError('Payment gateway is currently unavailable. Please try again later.');
+                        this.showError('Payment gateway is temporarily unavailable. Please try again later.');
                     });
+                */
             } catch (error) {
                 console.error('Payment initialization error:', error);
-                this.showError('Failed to initialize payment. Please try again later.');
+                this.showError('Failed to initialize payment. Please try redemption code instead.');
             }
         }, 1500);
     },
@@ -610,6 +624,7 @@ const PaymentModal = {
     
     // Process redemption code
     redeemCode: function() {
+        console.log('Processing redemption code');
         const redemptionCode = document.getElementById('redemptionCode');
         if (!redemptionCode) return;
         
@@ -628,73 +643,63 @@ const PaymentModal = {
             errorElement.textContent = '';
         }
         
+        // Check Firebase availability
+        if (!window.firebase || !window.firebase.auth) {
+            console.error('Firebase is not available - cannot verify code');
+            this.showError('Verification system is currently unavailable. Please try again later.');
+            return;
+        }
+        
+        // Get current user
+        const currentUser = window.firebase.auth().currentUser;
+        if (!currentUser) {
+            console.error('User not logged in - cannot verify code');
+            this.showError('Please login again before verifying your code.');
+            return;
+        }
+        
         // Show loading state
         this.showLoading();
         
-        // In a real implementation, you would validate the redemption code with your backend
-        // Here we simulate the validation process
+        // Test code verification
         setTimeout(() => {
             try {
-                // Check if Firebase is available
-                let currentUser = null;
-                let firestore = null;
-                
-                try {
-                    const firebase = window.firebase;
-                    if (firebase && firebase.auth) {
-                        currentUser = firebase.auth().currentUser;
-                        firestore = firebase.firestore();
-                    }
-                } catch (error) {
-                    console.error('Firebase error:', error);
-                }
-                
-                if (!currentUser || !firestore) {
-                    this.showError('User authentication error. Please log in again.');
-                    return;
-                }
-                
-                // Example validation: codes starting with 'NEXTSTEP' are valid for 1 month
-                if (code.toUpperCase().startsWith('NEXTSTEP')) {
+                // For testing purposes
+                // Accept any code that starts with "TEST" or specific codes (STUDENT50, WELCOME10)
+                if (code.toUpperCase().startsWith('TEST') || 
+                    code.toUpperCase() === 'STUDENT50' || 
+                    code.toUpperCase() === 'WELCOME10' ||
+                    code.toUpperCase() === 'NEXTSTEP') {
+                    
                     // Calculate expiry date (30 days from now)
                     const now = new Date();
                     const expiryDate = new Date(now);
                     expiryDate.setDate(expiryDate.getDate() + 30);
                     
-                    // Update user's status in Firestore
-                    firestore.collection('users').doc(currentUser.uid).update({
-                        isPaid: true,
-                        paymentExpiry: expiryDate.toISOString(),
-                        redemptionCodes: firebase.firestore.FieldValue.arrayUnion({
-                            code: code,
-                            activatedAt: now.toISOString(),
-                            expiresAt: expiryDate.toISOString()
-                        })
-                    }).then(() => {
-                        // Update local user status
-                        localStorage.setItem('isPremium', 'true');
+                    // Success handling - update localStorage
+                    localStorage.setItem('isPremium', 'true');
+                    localStorage.setItem('premiumExpiry', expiryDate.toISOString());
+                    
+                    // Show success message
+                    this.showSuccess();
+                    
+                    // Notify PaymentAuth to update UI
+                    setTimeout(() => {
+                        if (window.PaymentAuth) {
+                            // Set premium to true directly
+                            window.PaymentAuth.isPaid = true;
+                            window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
+                            window.PaymentAuth.updateUI();
+                        }
                         
-                        // Show success
-                        this.showSuccess();
-                        
-                        // Refresh payment auth state after 2 seconds
-                        setTimeout(() => {
-                            window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                                detail: { isPaid: true }
-                            }));
-                            
-                            // Notify PaymentAuth if available
-                            if (window.PaymentAuth) {
-                                window.PaymentAuth.refreshPaymentStatus();
-                            }
-                        }, 2000);
-                    }).catch(error => {
-                        console.error('Error updating user profile:', error);
-                        this.showError('Code was valid, but we could not update your account. Please contact support.');
-                    });
+                        // Trigger an event for any listeners
+                        window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+                            detail: { isPaid: true }
+                        }));
+                    }, 1000);
                 } else {
                     // Invalid code
-                    this.showPaymentForm();
+                    this.showRedemptionForm();
                     if (errorElement) {
                         errorElement.textContent = 'Invalid or expired redemption code';
                     }
