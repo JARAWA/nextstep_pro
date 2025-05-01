@@ -770,10 +770,31 @@ static showPaymentModal() {
                 margin-top: 10px;
                 min-height: 20px;
             }
-        `;
+        `        /* Add these crucial fixes */
+        .payment-form {
+            display: none;
+        }
         
-        document.head.appendChild(styleEl);
-    }
+        .payment-form.active {
+            display: block !important;
+        }
+        
+        /* Fix any z-index issues */
+        #paymentModal {
+            z-index: 100000 !important; 
+        }
+        
+        /* Ensure modal content is properly centered and sized */
+        .payment-modal-content {
+            max-width: 600px;
+            margin: 5% auto;
+            padding: 30px;
+        }
+    `;
+    
+    document.head.appendChild(styleEl);
+}
+
     
     /**
      * Initialize Razorpay payment
