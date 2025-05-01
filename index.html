@@ -227,47 +227,21 @@
     <script src="js/payment-modal.js"></script>
     <script type="module" src="js/payment-auth.js"></script>
 
-<script>
-  // Add this at the end of your index.html
-  document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, checking payment modal status');
-    
-    // After a short delay to allow other scripts to initialize
+    <script>
+  // Ensure payment modal is loaded after other elements
+  window.addEventListener('load', function() {
     setTimeout(function() {
-      const paymentModal = document.getElementById('paymentModal');
-      
-      if (paymentModal) {
-        console.log('Payment modal found in DOM');
-        
-        // Check which forms are currently active
-        const activeForms = paymentModal.querySelectorAll('.payment-form.active');
-        console.log(`Active payment forms: ${activeForms.length}`);
-        
-        // If no forms are active, activate the main one
-        if (activeForms.length === 0) {
-          console.log('No active forms found, activating payment form');
-          const paymentForm = document.getElementById('paymentForm');
-          if (paymentForm) {
-            paymentForm.classList.add('active');
-          }
+      // Check if payment modal exists
+      if (!document.getElementById('paymentModal') && window.PaymentModal) {
+        console.log('Payment modal not found after page load, manually loading it');
+        // Try to load it
+        if (typeof loadPaymentModalHTML === 'function') {
+          loadPaymentModalHTML();
+        } else if (window.PaymentModal && typeof window.PaymentModal.loadHTML === 'function') {
+          window.PaymentModal.loadHTML();
         }
-        
-        // Verify payment button functionality
-        const paymentButton = paymentModal.querySelector('.payment-btn');
-        if (paymentButton) {
-          console.log('Payment button found, ensuring click handler is attached');
-          // Make sure it has a click handler
-          paymentButton.addEventListener('click', function() {
-            console.log('Payment button clicked via backup handler');
-            if (window.PaymentModal && typeof window.PaymentModal.initiatePayment === 'function') {
-              window.PaymentModal.initiatePayment();
-            }
-          });
-        }
-      } else {
-        console.error('Payment modal not found in DOM!');
       }
-    }, 2000);
+    }, 3000);
   });
 </script>
 </body>
