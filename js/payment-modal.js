@@ -1,17 +1,32 @@
 // payment-modal.js - Updated for Firebase v9 compatibility
 
-// Import Firebase functions from your existing auth module
-import { db, auth } from './auth/services/firebase-config.js';
-import { 
-    collection, 
-    query, 
-    where, 
-    getDocs, 
-    doc, 
-    updateDoc, 
-    increment,
-    arrayUnion
-} from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+// Get Firebase functions from global scope
+const auth = window.firebaseAuth || firebase.auth();
+
+// Access Firestore if available via the global firebase object
+let db, collection, query, where, getDocs, doc, updateDoc, increment, arrayUnion;
+
+try {
+    // Try to get Firestore from global firebase object
+    db = firebase.firestore();
+    
+    // Get Firestore functions
+    collection = firebase.firestore.collection;
+    query = firebase.firestore.query;
+    where = firebase.firestore.where;
+    getDocs = firebase.firestore.getDocs;
+    doc = firebase.firestore.doc;
+    updateDoc = firebase.firestore.updateDoc;
+    increment = firebase.firestore.increment;
+    arrayUnion = firebase.firestore.arrayUnion;
+} catch (error) {
+    console.warn('Firestore not available in global scope:', error);
+    // Initialize empty functions that will be checked before use
+    collection = query = where = getDocs = doc = updateDoc = increment = arrayUnion = function() {
+        console.warn('Firestore function called but Firestore is not available');
+        return null;
+    };
+}
 
 // PaymentModal class - handles payment modal functionality
 class PaymentModal {
@@ -1011,8 +1026,6 @@ document.addEventListener('DOMNodeInserted', function(e) {
     }
 });
 
-// Export the PaymentModal class
-export default PaymentModal;
-
-// Also make it available globally for non-module scripts
+// Make PaymentModal available globally
 window.PaymentModal = PaymentModal;
+console.log('PaymentModal added to global scope');
