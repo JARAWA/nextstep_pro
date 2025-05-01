@@ -1,7 +1,17 @@
-// payment-modal.js - ES Module version
+// payment-modal.js - Updated for Firebase v9 compatibility
 
-// Import FirebaseInit if needed (but don't rely on the import, use window.FirebaseInit as fallback)
-import FirebaseInit from './firebase-init.js';
+// Import Firebase functions from your existing auth module
+import { db, auth } from './auth/services/firebase-config.js';
+import { 
+    collection, 
+    query, 
+    where, 
+    getDocs, 
+    doc, 
+    updateDoc, 
+    increment,
+    arrayUnion
+} from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
 
 // PaymentModal class - handles payment modal functionality
 class PaymentModal {
@@ -43,20 +53,14 @@ class PaymentModal {
             paymentForm.classList.add('active');
         }
         
-        // Add close button event listeners with direct binding
+        // Add close button event listeners
         const closeButtons = paymentModal.querySelectorAll('.close');
         closeButtons.forEach(button => {
             button.addEventListener('click', () => this.closeModal());
         });
         
-        // Setup plan selection buttons
-        const planOptions = paymentModal.querySelectorAll('.plan-option');
-        planOptions.forEach(plan => {
-            plan.addEventListener('click', () => {
-                const planType = plan.getAttribute('data-plan');
-                this.selectPlan(planType, plan);
-            });
-        });
+        // Setup plan selection buttons (this will work with your existing onclick attributes)
+        // Your HTML already has onclick="PaymentModal.selectPlan('monthly', this)"
         
         // Setup coupon toggle
         const couponToggle = paymentModal.querySelector('.coupon-toggle');
@@ -70,92 +74,33 @@ class PaymentModal {
             applyButton.addEventListener('click', () => this.applyCoupon());
         }
         
-        // Setup payment button
-        const paymentButton = paymentModal.querySelector('.payment-btn');
-        if (paymentButton) {
-            // Remove existing listeners first to prevent duplicates
-            const newPaymentButton = paymentButton.cloneNode(true);
-            paymentButton.parentNode.replaceChild(newPaymentButton, paymentButton);
-            newPaymentButton.addEventListener('click', () => this.initiatePayment());
-        }
+        // Setup payment button (this will work with your existing onclick attribute)
+        // Your HTML already has onclick="PaymentModal.initiatePayment()"
         
-        // Setup redemption link
-        const redemptionLink = paymentModal.querySelector('.redemption-option a');
-        if (redemptionLink) {
-            redemptionLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.showRedemptionForm();
-            });
-        }
+        // Setup redemption link (this will work with your existing onclick attribute)
+        // Your HTML already has onclick="PaymentModal.showRedemptionForm()"
         
-        // Setup back to payment link
-        const backToPaymentLink = paymentModal.querySelector('.redemption-footer a');
-        if (backToPaymentLink) {
-            backToPaymentLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.showPaymentForm();
-            });
-        }
+        // Setup back to payment link (this will work with your existing onclick attribute)
+        // Your HTML already has onclick="PaymentModal.showPaymentForm()"
         
-        // Setup redemption button
-        const redeemButton = paymentModal.querySelector('.redemption-btn');
-        if (redeemButton) {
-            redeemButton.addEventListener('click', () => this.redeemCode());
-        }
+        // Setup redemption button (this will work with your existing onclick attribute)
+        // Your HTML already has onclick="PaymentModal.redeemCode()"
         
-        // Setup success button
-        const successButton = paymentModal.querySelector('.success-btn');
-        if (successButton) {
-            successButton.addEventListener('click', () => this.closeModal());
-        }
+        // Setup success button (this will work with your existing onclick attribute)
+        // Your HTML already has onclick="PaymentModal.closeModal()"
         
-        // Setup retry button
-        const retryButton = paymentModal.querySelector('.retry-btn');
-        if (retryButton) {
-            retryButton.addEventListener('click', () => {
-                console.log('Retry button clicked');
-                this.showPaymentForm();
-            });
-        }
+        // Setup retry button (this will work with your existing onclick attribute)
+        // Your HTML already has onclick="PaymentModal.showPaymentForm()"
         
         console.log('Payment modal initialization completed');
     }
     
     // Check Firebase availability and adjust UI accordingly
     static checkFirebaseStatus() {
-        if (!window.firebase || !window.firebase.auth || !window.firebase.firestore) {
+        if (!db || !auth) {
             console.warn('Firebase not detected. Payment functionality will be limited.');
-            
-            // Set flag to indicate Firebase is not available
             this.firebaseAvailable = false;
-            
-            // Try to initialize Firebase if FirebaseInit is available
-            const firebaseInitProvider = window.FirebaseInit || FirebaseInit;
-            
-            if (firebaseInitProvider) {
-                firebaseInitProvider.initializeFirebase()
-                    .then((success) => {
-                        if (success) {
-                            console.log('Firebase initialized successfully via FirebaseInit');
-                            this.firebaseAvailable = true;
-                            
-                            // Update UI to show Firebase is now available
-                            this.updateUIForFirebaseStatus(true);
-                        } else {
-                            console.error('Firebase initialization failed');
-                            // Keep UI in limited mode
-                            this.updateUIForFirebaseStatus(false);
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Firebase initialization failed:', err);
-                        // Keep UI in limited mode
-                        this.updateUIForFirebaseStatus(false);
-                    });
-            } else {
-                // If FirebaseInit is not available, update UI for limited functionality
-                this.updateUIForFirebaseStatus(false);
-            }
+            this.updateUIForFirebaseStatus(false);
         } else {
             this.firebaseAvailable = true;
             console.log('Firebase is available. Full payment functionality enabled.');
@@ -176,18 +121,22 @@ class PaymentModal {
                 paymentButton.textContent = 'Use Redemption Code';
                 
                 // Remove existing listeners and add one for redemption
-                const newPaymentButton = paymentButton.cloneNode(true);
-                paymentButton.parentNode.replaceChild(newPaymentButton, paymentButton);
-                newPaymentButton.addEventListener('click', () => this.showRedemptionForm());
+                paymentButton.setAttribute('onclick', "PaymentModal.showRedemptionForm()");
             }
             
             // Add notification about limited functionality
-            const paymentHeader = paymentModal.querySelector('.payment-header');
+            const paymentHeader = paymentModal.querySelector('h2');
             if (paymentHeader) {
                 const notificationExists = paymentModal.querySelector('.firebase-notification');
                 if (!notificationExists) {
                     const notification = document.createElement('div');
                     notification.className = 'firebase-notification';
+                    notification.style.backgroundColor = '#fff3cd';
+                    notification.style.color = '#856404';
+                    notification.style.padding = '10px';
+                    notification.style.marginBottom = '15px';
+                    notification.style.borderRadius = '4px';
+                    notification.style.fontSize = '14px';
                     notification.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Online payment is currently unavailable. Please use a redemption code.';
                     
                     paymentHeader.parentNode.insertBefore(notification, paymentHeader.nextSibling);
@@ -213,12 +162,8 @@ class PaymentModal {
             // Restore payment button
             const paymentButton = paymentModal.querySelector('.payment-btn');
             if (paymentButton && paymentButton.textContent === 'Use Redemption Code') {
-                paymentButton.textContent = 'Proceed to Payment';
-                
-                // Remove existing listeners and add the normal one
-                const newPaymentButton = paymentButton.cloneNode(true);
-                paymentButton.parentNode.replaceChild(newPaymentButton, paymentButton);
-                newPaymentButton.addEventListener('click', () => this.initiatePayment());
+                paymentButton.textContent = 'Proceed to Secure Payment';
+                paymentButton.setAttribute('onclick', "PaymentModal.initiatePayment()");
             }
             
             // Show elements that require Firebase
@@ -261,8 +206,8 @@ class PaymentModal {
         }
     }
     
-    // Process redemption code - main method modified to handle Firestore data structure
-    static redeemCode() {
+    // Process redemption code - updated for Firebase v9
+    static async redeemCode() {
         console.log('Processing redemption code');
         const redemptionCode = document.getElementById('redemptionCode');
         if (!redemptionCode) return;
@@ -333,155 +278,163 @@ class PaymentModal {
             return;
         }
         
-        // Get current user
-        const currentUser = window.firebase.auth().currentUser;
-        if (!currentUser) {
-            console.error('User not logged in - cannot verify code');
-            setTimeout(() => {
+        try {
+            // Get current user
+            const currentUser = auth.currentUser;
+            if (!currentUser) {
+                console.error('User not logged in - cannot verify code');
                 this.showError('Please login again before verifying your code.');
-            }, 1000);
-            return;
-        }
-        
-        // Get Firestore reference
-        const db = window.firebase.firestore();
-        const userId = currentUser.uid;
-        
-        // Check the verification code in Firestore
-        db.collection('verificationCodes')
-            .where('code', '==', code)
-            .where('isActive', '==', true)
-            .get()
-            .then((querySnapshot) => {
-                if (querySnapshot.empty) {
-                    // No matching code found
-                    this.showRedemptionForm();
-                    if (errorElement) {
-                        errorElement.textContent = 'Invalid or expired redemption code';
-                    }
-                    return;
+                return;
+            }
+            
+            const userId = currentUser.uid;
+            
+            // Query for verification code using Firebase v9 syntax
+            const codesRef = collection(db, 'verificationCodes');
+            const codeQuery = query(codesRef, 
+                where('code', '==', code),
+                where('isActive', '==', true)
+            );
+            
+            const querySnapshot = await getDocs(codeQuery);
+            
+            if (querySnapshot.empty) {
+                // No matching code found
+                this.showRedemptionForm();
+                if (errorElement) {
+                    errorElement.textContent = 'Invalid or expired redemption code';
                 }
-                
-                // Get the first (should be only) matching document
-                const codeDoc = querySnapshot.docs[0];
-                const codeData = codeDoc.data();
-                
-                // Check if code has reached max uses
-                if (codeData.usedCount >= codeData.maxUses) {
-                    this.showRedemptionForm();
-                    if (errorElement) {
-                        errorElement.textContent = 'This code has reached its maximum number of uses';
-                    }
-                    return;
+                return;
+            }
+            
+            // Get the first (should be only) matching document
+            const codeDoc = querySnapshot.docs[0];
+            const codeData = codeDoc.data();
+            
+            // Check if code has reached max uses
+            if (codeData.usedCount >= codeData.maxUses) {
+                this.showRedemptionForm();
+                if (errorElement) {
+                    errorElement.textContent = 'This code has reached its maximum number of uses';
                 }
-                
-                // Check if user has already used this code
-                let usedBy = [];
-                try {
-                    // Try to parse the usedBy field if it's stored as a JSON string
-                    if (typeof codeData.usedBy === 'string') {
-                        usedBy = JSON.parse(codeData.usedBy);
-                    } else if (Array.isArray(codeData.usedBy)) {
-                        usedBy = codeData.usedBy;
-                    }
-                } catch (e) {
-                    console.error('Error parsing usedBy data:', e);
-                    // Continue with empty array if parsing fails
-                }
-                
-                if (usedBy.includes(userId)) {
-                    this.showRedemptionForm();
-                    if (errorElement) {
-                        errorElement.textContent = 'You have already used this code';
-                    }
-                    return;
-                }
-                
-                // Code is valid - process it
-                
-                // Calculate expiry date based on expiryDays field
-                const now = new Date();
-                const expiryDate = new Date(now);
-                expiryDate.setDate(expiryDate.getDate() + (codeData.expiryDays || 30)); // Default to 30 if not specified
-                
-                // Update the code usage in Firestore
-                // First, update the usedBy array
-                let newUsedBy;
+                return;
+            }
+            
+            // Check if user has already used this code
+            let usedBy = [];
+            try {
+                // Try to parse the usedBy field if it's stored as a JSON string
                 if (typeof codeData.usedBy === 'string') {
-                    // If stored as JSON string, parse, update and stringify again
-                    try {
-                        let usedByArray = JSON.parse(codeData.usedBy);
-                        usedByArray.push(userId);
-                        newUsedBy = JSON.stringify(usedByArray);
-                    } catch (e) {
-                        // If parsing fails, create new array with just this user
-                        newUsedBy = JSON.stringify([userId]);
-                    }
-                } else {
-                    // If it's already an array, use Firestore array union
-                    newUsedBy = window.firebase.firestore.FieldValue.arrayUnion(userId);
+                    usedBy = JSON.parse(codeData.usedBy);
+                } else if (Array.isArray(codeData.usedBy)) {
+                    usedBy = codeData.usedBy;
+                }
+            } catch (e) {
+                console.error('Error parsing usedBy data:', e);
+                // Continue with empty array if parsing fails
+            }
+            
+            if (usedBy.includes(userId)) {
+                this.showRedemptionForm();
+                if (errorElement) {
+                    errorElement.textContent = 'You have already used this code';
+                }
+                return;
+            }
+            
+            // Code is valid - process it
+            
+            // Calculate expiry date based on expiryDays field
+            const now = new Date();
+            const expiryDate = new Date(now);
+            expiryDate.setDate(expiryDate.getDate() + (codeData.expiryDays || 30)); // Default to 30 if not specified
+            
+            // Update the code usage in Firestore using Firebase v9 syntax
+            // First, update the usedBy array
+            let newUsedBy;
+            if (typeof codeData.usedBy === 'string') {
+                // If stored as JSON string, parse, update and stringify again
+                try {
+                    let usedByArray = JSON.parse(codeData.usedBy);
+                    usedByArray.push(userId);
+                    newUsedBy = JSON.stringify(usedByArray);
+                } catch (e) {
+                    // If parsing fails, create new array with just this user
+                    newUsedBy = JSON.stringify([userId]);
+                }
+            } else {
+                // If it's already an array, we'll handle it with arrayUnion below
+                // We'll just leave newUsedBy undefined here
+            }
+            
+            // Get a reference to the code document
+            const codeRef = doc(db, 'verificationCodes', codeDoc.id);
+            
+            // Prepare the update data
+            const updateData = {};
+            
+            // Increment usedCount
+            updateData.usedCount = increment(1);
+            
+            // Update usedBy based on whether it's a string or array
+            if (typeof codeData.usedBy === 'string') {
+                updateData.usedBy = newUsedBy;
+            } else {
+                // For array type, use arrayUnion
+                updateData.usedBy = arrayUnion(userId);
+            }
+            
+            // Set isActive based on usage count
+            updateData.isActive = (codeData.usedCount + 1 < codeData.maxUses);
+            
+            // Perform the update
+            await updateDoc(codeRef, updateData);
+            
+            // Now update user's premium status
+            const userRef = doc(db, 'users', userId);
+            await updateDoc(userRef, {
+                isPaid: true,
+                paymentExpiry: expiryDate.toISOString(),
+                paymentHistory: arrayUnion({
+                    type: 'redemption',
+                    code: code,
+                    timestamp: now.toISOString(),
+                    expiryDate: expiryDate.toISOString()
+                })
+            });
+            
+            // Update local storage
+            localStorage.setItem('isPremium', 'true');
+            localStorage.setItem('premiumExpiry', expiryDate.toISOString());
+            
+            // Show success
+            this.showSuccess();
+            
+            // Notify system about payment status change
+            setTimeout(() => {
+                // Update UI
+                if (window.PaymentAuth) {
+                    window.PaymentAuth.isPaid = true;
+                    window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
+                    window.PaymentAuth.updateUI();
                 }
                 
-                // Update the verification code document
-                const codeRef = db.collection('verificationCodes').doc(codeDoc.id);
-                codeRef.update({
-                    usedCount: window.firebase.firestore.FieldValue.increment(1),
-                    usedBy: newUsedBy,
-                    // If code has reached max uses, set isActive to false
-                    isActive: (codeData.usedCount + 1 < codeData.maxUses)
-                })
-                .then(() => {
-                    // Success - now update user's premium status
-                    return db.collection('users').doc(userId).update({
+                // Dispatch event
+                window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+                    detail: { 
                         isPaid: true,
-                        paymentExpiry: expiryDate.toISOString(),
-                        paymentHistory: window.firebase.firestore.FieldValue.arrayUnion({
-                            type: 'redemption',
-                            code: code,
-                            timestamp: now.toISOString(),
-                            expiryDate: expiryDate.toISOString()
-                        })
-                    });
-                })
-                .then(() => {
-                    // Update local storage
-                    localStorage.setItem('isPremium', 'true');
-                    localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                    
-                    // Show success
-                    this.showSuccess();
-                    
-                    // Notify system about payment status change
-                    setTimeout(() => {
-                        // Update UI
-                        if (window.PaymentAuth) {
-                            window.PaymentAuth.isPaid = true;
-                            window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
-                            window.PaymentAuth.updateUI();
-                        }
-                        
-                        // Dispatch event
-                        window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                            detail: { 
-                                isPaid: true,
-                                expiryDate: expiryDate.toISOString()
-                            }
-                        }));
-                    }, 1500);
-                })
-                .catch((error) => {
-                    console.error('Error updating code usage:', error);
-                    this.showError('Error processing your redemption code. Please try again later.');
-                });
-            })
-            .catch((error) => {
-                console.error('Error checking redemption code:', error);
-                this.showError('Error verifying code. Please try again later.');
-            });
+                        expiryDate: expiryDate.toISOString()
+                    }
+                }));
+            }, 1500);
+        } catch (error) {
+            console.error('Error processing redemption code:', error);
+            this.showError('Error verifying code. Please try again later.');
+        }
     }
     
     // Initiate payment process
-    static initiatePayment() {
+    static async initiatePayment() {
         console.log('Initiating payment process');
         
         // Check if Firebase is required but not available
@@ -494,7 +447,7 @@ class PaymentModal {
         this.showLoading();
         
         // Get current user before proceeding
-        const currentUser = window.firebase.auth().currentUser;
+        const currentUser = auth.currentUser;
         if (!currentUser) {
             console.error('User not logged in - cannot proceed with payment');
             setTimeout(() => {
@@ -797,19 +750,12 @@ export default PaymentModal;
 // Also make it available globally for non-module scripts
 window.PaymentModal = PaymentModal;
 
-// Initialize when DOM is fully loaded - but wait for Firebase initialization first
+// Initialize when DOM is fully loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Don't initialize immediately - check if FirebaseInit exists and is handling initialization
-    const firebaseInitProvider = window.FirebaseInit || FirebaseInit;
-    
-    if (!firebaseInitProvider || !firebaseInitProvider.init) {
-        // If FirebaseInit is not available or not handling initialization, initialize directly
-        console.log('FirebaseInit not available, initializing PaymentModal directly after 2s delay');
-        setTimeout(() => {
-            if (document.getElementById('paymentModal')) {
-                PaymentModal.init();
-            }
-        }, 2000);
-    }
-    // Otherwise, FirebaseInit will call PaymentModal.init() when Firebase is ready
+    // Initialize directly with a small delay to ensure DOM is ready
+    setTimeout(() => {
+        if (document.getElementById('paymentModal')) {
+            PaymentModal.init();
+        }
+    }, 1000);
 });
