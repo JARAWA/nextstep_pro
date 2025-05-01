@@ -213,7 +213,12 @@ static loadPaymentModal() {
         // Add handlers to elements with data-requires-premium="true"
         document.querySelectorAll('[data-requires-premium="true"]').forEach(element => {
             // Remove existing handler if any (to prevent duplicates)
+            // In setupPremiumFeatures, update the event listener code:
             element.removeEventListener('click', this.premiumClickHandler);
+
+            // Add click handler to show payment modal for non-premium users
+            const boundHandler = (e) => this.premiumClickHandler(e);
+            element.addEventListener('click', boundHandler);
             
             // Add premium-disabled class initially if not paid
             if (!this.isPaid) {
@@ -1096,11 +1101,17 @@ static loadPaymentModal() {
     }
 }
 
-// Initialize the PaymentAuth service when the page loads
+// Replace the DOMContentLoaded handler with this:
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing PaymentAuth');
-    // Initialize immediately rather than with a timeout
-    PaymentAuth.init();
+    
+    // Check if document is already loaded
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(() => PaymentAuth.init(), 100);
+    } else {
+        // Initialize immediately
+        PaymentAuth.init();
+    }
 });
 
 // For Auth module initialization event
