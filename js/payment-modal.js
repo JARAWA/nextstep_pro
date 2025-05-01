@@ -419,7 +419,7 @@ static checkFirebaseStatus() {
     
     // Process redemption code - updated for Firebase v9 with improved error handling
 static async redeemCode() {
-      // Refresh the currentUser reference
+    // Refresh the currentUser reference
     auth.currentUser = window.Auth && window.Auth.user ? window.Auth.user : null;
     
     // Prevent multiple submissions
@@ -456,32 +456,32 @@ static async redeemCode() {
     // Show loading state
     this.showLoading();
     
-    // Check Firebase availability - using fallback to localStorage if needed
+    // Check Firebase availability
     if (!window.firebase || !window.firebase.firestore) {
         console.warn('Firebase is not available - using localStorage fallback');
         
         // Fallback to localStorage-only mode for testing
         setTimeout(() => {
             try {
-                // For testing purposes without Firebase
+                // Test code validation
                 if (code.toUpperCase().startsWith('TEST') || 
                     code.toUpperCase() === 'STUDENT50' || 
                     code.toUpperCase() === 'WELCOME10' ||
                     code.toUpperCase() === 'NEXTSTEP') {
                     
-                    // Calculate expiry date (30 days from now)
+                    // Set expiry date (30 days from now)
                     const now = new Date();
                     const expiryDate = new Date(now);
                     expiryDate.setDate(expiryDate.getDate() + 30);
                     
-                    // Success handling - update localStorage
+                    // Update localStorage
                     localStorage.setItem('isPremium', 'true');
                     localStorage.setItem('premiumExpiry', expiryDate.toISOString());
                     
                     // Show success message
                     this.showSuccess();
                     
-                    // Trigger an event for any listeners
+                    // Dispatch event
                     window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
                         detail: { 
                             isPaid: true,
@@ -507,7 +507,7 @@ static async redeemCode() {
     }
     
     try {
-        // Get current user with additional validation
+        // Get current user
         const currentUser = auth.currentUser;
         if (!currentUser) {
             console.error('User not logged in - cannot verify code');
@@ -518,33 +518,31 @@ static async redeemCode() {
         
         const userId = currentUser.uid;
         
-        // Direct access to Firestore - bypass wrapper functions
-if (window.firebase && window.firebase.firestore) {
-    // Create a reference to Firestore
-    const firestore = window.firebase.firestore();
-    
-    // Run the query using the Firestore reference
-    firestore.collection('verificationCodes')
-        .where('code', '==', code)
-        .where('isActive', '==', true)
-        .limit(1)
-        .get()
-        .then((querySnapshot) => {
-            if (querySnapshot.empty) {
-                // No matching code found
-                this.showRedemptionForm();
-                if (errorElement) {
-                    errorElement.textContent = 'Invalid or expired redemption code';
+        // Create a reference to Firestore
+        const firestore = window.firebase.firestore();
+        
+        // Process code with Firestore
+        firestore.collection('verificationCodes')
+            .where('code', '==', code)
+            .where('isActive', '==', true)
+            .limit(1)
+            .get()
+            .then((querySnapshot) => {
+                if (querySnapshot.empty) {
+                    // No matching code found
+                    this.showRedemptionForm();
+                    if (errorElement) {
+                        errorElement.textContent = 'Invalid or expired redemption code';
+                    }
+                    this.isProcessing = false;
+                    return;
                 }
-                this.isProcessing = false;
-                return;
-            }
                 
-                // Get the first (should be only) matching document
+                // Get the code document
                 const codeDoc = querySnapshot.docs[0];
                 const codeData = codeDoc.data();
                 
-                // Check if code has reached max uses
+                // Validation checks
                 if (codeData.usedCount >= codeData.maxUses) {
                     this.showRedemptionForm();
                     if (errorElement) {
@@ -554,18 +552,16 @@ if (window.firebase && window.firebase.firestore) {
                     return;
                 }
                 
-                // Check if user has already used this code
+                // Parse usedBy safely
                 let usedBy = [];
-                try {
-                    // Try to parse the usedBy field if it's stored as a JSON string
-                    if (typeof codeData.usedBy === 'string') {
+                if (Array.isArray(codeData.usedBy)) {
+                    usedBy = codeData.usedBy;
+                } else if (typeof codeData.usedBy === 'string') {
+                    try {
                         usedBy = JSON.parse(codeData.usedBy);
-                    } else if (Array.isArray(codeData.usedBy)) {
-                        usedBy = codeData.usedBy;
+                    } catch (e) {
+                        console.warn('Error parsing usedBy data, treating as empty array');
                     }
-                } catch (e) {
-                    console.error('Error parsing usedBy data:', e);
-                    // Continue with empty array if parsing fails
                 }
                 
                 if (usedBy.includes(userId)) {
@@ -577,24 +573,20 @@ if (window.firebase && window.firebase.firestore) {
                     return;
                 }
                 
-                // Code is valid - process it
-                
-                // Calculate expiry date based on expiryDays field
+                // Calculate expiry date
                 const now = new Date();
                 const expiryDate = new Date(now);
-                expiryDate.setDate(expiryDate.getDate() + (codeData.expiryDays || 30)); // Default to 30 if not specified
+                expiryDate.setDate(expiryDate.getDate() + (codeData.expiryDays || 30));
                 
-                // Update the code usage in Firestore - direct access
-                const codeRef = window.firebase.firestore().collection('verificationCodes').doc(codeDoc.id);
-                
-                // Try to update the code document
+                // Update code usage
+                const codeRef = firestore.collection('verificationCodes').doc(codeDoc.id);
                 codeRef.update({
                     usedCount: window.firebase.firestore.FieldValue.increment(1),
                     isActive: (codeData.usedCount + 1 < codeData.maxUses)
                 })
                 .then(() => {
                     // Update user's premium status
-                    window.firebase.firestore().collection('users').doc(userId).update({
+                    firestore.collection('users').doc(userId).update({
                         isPaid: true,
                         paymentExpiry: expiryDate.toISOString()
                     })
@@ -606,16 +598,14 @@ if (window.firebase && window.firebase.firestore) {
                         // Show success
                         this.showSuccess();
                         
-                        // Notify system about payment status change
+                        // Update UI with event
                         setTimeout(() => {
-                            // Update UI
                             if (window.PaymentAuth) {
                                 window.PaymentAuth.isPaid = true;
                                 window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
                                 window.PaymentAuth.updateUI();
                             }
                             
-                            // Dispatch event
                             window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
                                 detail: { 
                                     isPaid: true,
@@ -629,14 +619,12 @@ if (window.firebase && window.firebase.firestore) {
                     .catch((userUpdateError) => {
                         console.error('Error updating user document:', userUpdateError);
                         
-                        // Fallback to localStorage if database update fails
+                        // Fallback to localStorage
                         localStorage.setItem('isPremium', 'true');
                         localStorage.setItem('premiumExpiry', expiryDate.toISOString());
                         
-                        // Show success anyway since the code was valid
                         this.showSuccess();
                         
-                        // Dispatch event
                         window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
                             detail: { 
                                 isPaid: true,
@@ -650,14 +638,12 @@ if (window.firebase && window.firebase.firestore) {
                 .catch((codeUpdateError) => {
                     console.error('Error updating code document:', codeUpdateError);
                     
-                    // If code is valid but we can't update it, still give access
+                    // Still give access if code was valid
                     localStorage.setItem('isPremium', 'true');
                     localStorage.setItem('premiumExpiry', expiryDate.toISOString());
                     
-                    // Show success
                     this.showSuccess();
                     
-                    // Dispatch event
                     window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
                         detail: { 
                             isPaid: true,
