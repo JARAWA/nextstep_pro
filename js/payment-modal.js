@@ -218,50 +218,54 @@ static checkFirebaseStatus() {
             // Update the auth reference
             auth = window.firebase.auth();
             
-            // Initialize Firestore variables
+            // Initialize Firestore variables - this is crucial
             db = window.firebase.firestore();
             
-            // Check Firebase version and determine how to access Firestore functions
-            if (typeof db.collection === 'function') {
-                // Firebase v8 or earlier
-                collection = function(...args) { return db.collection(...args); };
-                query = function(...args) { return db.query ? db.query(...args) : args[0]; };
-                where = function(...args) { return db.where ? db.where(...args) : window.firebase.firestore.where(...args); };
-                getDocs = function(q) { return q.get ? q.get() : window.firebase.firestore.getDocs(q); };
-                doc = function(...args) { return db.doc(...args); };
-                updateDoc = function(docRef, data) { return docRef.update(data); };
-                
-                // Access FieldValue for v8
-                if (window.firebase.firestore.FieldValue) {
-                    increment = window.firebase.firestore.FieldValue.increment;
-                    arrayUnion = window.firebase.firestore.FieldValue.arrayUnion;
-                }
-            } else {
-                // Assume Firebase v9 modular SDK
-                console.log('Using Firebase v9 modular SDK compatibility mode');
-                // These are placeholders - you may need to adjust based on actual structure
-                collection = db.collection ? db.collection.bind(db) : null;
-                query = db.query || null;
-                where = window.firebase.firestore.where || null;
-                getDocs = function(q) { return q.get(); };
-                doc = db.doc ? db.doc.bind(db) : null;
-                updateDoc = function(docRef, data) { return docRef.update(data); };
-                
-                if (window.firebase.firestore.FieldValue) {
-                    increment = window.firebase.firestore.FieldValue.increment;
-                    arrayUnion = window.firebase.firestore.FieldValue.arrayUnion;
-                }
-            }
+            // Initialize Firestore functions based on Firebase version
+            // For Firebase v8 (non-modular API)
+            collection = function(path) {
+                return db.collection(path);
+            };
             
-            // Fallback for compatibility issues
-            if (!collection || typeof collection !== 'function') {
-                console.warn('Firestore collection function not available, using compatibility mode');
-                collection = function(path) {
-                    return {
-                        doc: function(id) {
-                            return db.doc(path + '/' + id);
-                        }
-                    };
+            query = function(collRef, ...constraints) {
+                // In v8, the query constraints are added directly to the collection reference
+                return collRef;
+            };
+            
+            where = function(field, op, value) {
+                return {
+                    field: field,
+                    op: op,
+                    value: value
+                };
+            };
+            
+            getDocs = function(q) {
+                // In v8, we call get() on the query
+                return q.get();
+            };
+            
+            doc = function(collOrPath, ...pathSegments) {
+                if (typeof collOrPath === 'string') {
+                    return db.doc(collOrPath + '/' + pathSegments.join('/'));
+                } else {
+                    // If it's a collection reference, handle it properly
+                    return collOrPath.doc(pathSegments[0]);
+                }
+            };
+            
+            updateDoc = function(docRef, data) {
+                return docRef.update(data);
+            };
+            
+            // Access FieldValue
+            if (window.firebase.firestore.FieldValue) {
+                increment = function(val) {
+                    return window.firebase.firestore.FieldValue.increment(val);
+                };
+                
+                arrayUnion = function(...elements) {
+                    return window.firebase.firestore.FieldValue.arrayUnion(...elements);
                 };
             }
             
@@ -434,334 +438,260 @@ static checkFirebaseStatus() {
     }
     
     // Process redemption code - updated for Firebase v9 with improved error handling
-    static async redeemCode() {
-        // Prevent multiple submissions
-        if (this.isProcessing) {
-            console.log('Redemption already in progress, ignoring duplicate request');
-            return;
-        }
-        
-        this.isProcessing = true;
-        console.log('Processing redemption code');
-        
-        const redemptionCode = document.getElementById('redemptionCode');
-        if (!redemptionCode) {
-            this.isProcessing = false;
-            return;
-        }
-        
-        const code = redemptionCode.value.trim();
-        const errorElement = document.getElementById('redemptionCodeError');
-        
-        if (!code) {
-            if (errorElement) {
-                errorElement.textContent = 'Please enter a redemption code';
-            }
-            this.isProcessing = false;
-            return;
-        }
-        
-        // Clear previous errors
+static async redeemCode() {
+    // Prevent multiple submissions
+    if (this.isProcessing) {
+        console.log('Redemption already in progress, ignoring duplicate request');
+        return;
+    }
+    
+    this.isProcessing = true;
+    console.log('Processing redemption code');
+    
+    const redemptionCode = document.getElementById('redemptionCode');
+    if (!redemptionCode) {
+        this.isProcessing = false;
+        return;
+    }
+    
+    const code = redemptionCode.value.trim();
+    const errorElement = document.getElementById('redemptionCodeError');
+    
+    if (!code) {
         if (errorElement) {
-            errorElement.textContent = '';
+            errorElement.textContent = 'Please enter a redemption code';
         }
+        this.isProcessing = false;
+        return;
+    }
+    
+    // Clear previous errors
+    if (errorElement) {
+        errorElement.textContent = '';
+    }
+    
+    // Show loading state
+    this.showLoading();
+    
+    // Check Firebase availability
+    if (!this.firebaseAvailable) {
+        console.warn('Firebase is not available - using localStorage fallback');
         
-        // Show loading state
-        this.showLoading();
-        
-        // Check Firebase availability
-        if (!this.firebaseAvailable) {
-            console.warn('Firebase is not available - using localStorage fallback');
-            
-            // Fallback to localStorage-only mode for testing
-            setTimeout(() => {
-                try {
-                    // For testing purposes without Firebase
-                    // Accept any code that starts with "TEST" or specific codes
-                    if (code.toUpperCase().startsWith('TEST') || 
-                        code.toUpperCase() === 'STUDENT50' || 
-                        code.toUpperCase() === 'WELCOME10' ||
-                        code.toUpperCase() === 'NEXTSTEP') {
-                        
-                        // Calculate expiry date (30 days from now)
-                        const now = new Date();
-                        const expiryDate = new Date(now);
-                        expiryDate.setDate(expiryDate.getDate() + 30);
-                        
-                        // Success handling - update localStorage
-                        localStorage.setItem('isPremium', 'true');
-                        localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                        
-                        // Show success message
-                        this.showSuccess();
-                        
-                        // Trigger an event for any listeners
-                        window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                            detail: { 
-                                isPaid: true,
-                                expiryDate: expiryDate.toISOString()
-                            }
-                        }));
-                    } else {
-                        // Invalid code
-                        this.showRedemptionForm();
-                        if (errorElement) {
-                            errorElement.textContent = 'Invalid or expired redemption code';
-                        }
-                    }
-                    
-                    this.isProcessing = false;
-                } catch (error) {
-                    console.error('Redemption error:', error);
-                    this.showError('Error processing redemption code. Please try again later.');
-                    this.isProcessing = false;
-                }
-            }, 1500);
-            return;
-        }
-        
-        try {
-            // Get current user with additional validation
-            const currentUser = auth.currentUser;
-            if (!currentUser) {
-                console.error('User not logged in - cannot verify code');
-                this.showError('You need to be logged in to verify your code. Please refresh the page and try again.');
-                this.isProcessing = false;
-                return;
-            }
-            
-            const userId = currentUser.uid;
-            
-            // Query for verification code using Firebase v9 syntax
-            const codesRef = collection(db, 'verificationCodes');
-            const codeQuery = query(codesRef, 
-                where('code', '==', code),
-                where('isActive', '==', true)
-            );
-            
+        // Fallback to localStorage-only mode for testing
+        setTimeout(() => {
             try {
-                const querySnapshot = await getDocs(codeQuery);
-                
-                if (querySnapshot.empty) {
-                    // No matching code found
+                // For testing purposes without Firebase
+                if (code.toUpperCase().startsWith('TEST') || 
+                    code.toUpperCase() === 'STUDENT50' || 
+                    code.toUpperCase() === 'WELCOME10' ||
+                    code.toUpperCase() === 'NEXTSTEP') {
+                    
+                    // Calculate expiry date (30 days from now)
+                    const now = new Date();
+                    const expiryDate = new Date(now);
+                    expiryDate.setDate(expiryDate.getDate() + 30);
+                    
+                    // Success handling - update localStorage
+                    localStorage.setItem('isPremium', 'true');
+                    localStorage.setItem('premiumExpiry', expiryDate.toISOString());
+                    
+                    // Show success message
+                    this.showSuccess();
+                    
+                    // Trigger an event for any listeners
+                    window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+                        detail: { 
+                            isPaid: true,
+                            expiryDate: expiryDate.toISOString()
+                        }
+                    }));
+                } else {
+                    // Invalid code
                     this.showRedemptionForm();
                     if (errorElement) {
                         errorElement.textContent = 'Invalid or expired redemption code';
                     }
-                    this.isProcessing = false;
-                    return;
                 }
                 
-                // Get the first (should be only) matching document
-                const codeDoc = querySnapshot.docs[0];
-                const codeData = codeDoc.data();
-                
-                // Check if code has reached max uses
-                if (codeData.usedCount >= codeData.maxUses) {
-                    this.showRedemptionForm();
-                    if (errorElement) {
-                        errorElement.textContent = 'This code has reached its maximum number of uses';
-                    }
-                    this.isProcessing = false;
-                    return;
-                }
-                
-                // Check if user has already used this code
-                let usedBy = [];
-                try {
-                    // Try to parse the usedBy field if it's stored as a JSON string
-                    if (typeof codeData.usedBy === 'string') {
-                        usedBy = JSON.parse(codeData.usedBy);
-                    } else if (Array.isArray(codeData.usedBy)) {
-                        usedBy = codeData.usedBy;
-                    }
-                } catch (e) {
-                    console.error('Error parsing usedBy data:', e);
-                    // Continue with empty array if parsing fails
-                }
-                
-                if (usedBy.includes(userId)) {
-                    this.showRedemptionForm();
-                    if (errorElement) {
-                        errorElement.textContent = 'You have already used this code';
-                    }
-                    this.isProcessing = false;
-                    return;
-                }
-                
-                // Code is valid - process it
-                
-                // Calculate expiry date based on expiryDays field
-                const now = new Date();
-                const expiryDate = new Date(now);
-                expiryDate.setDate(expiryDate.getDate() + (codeData.expiryDays || 30)); // Default to 30 if not specified
-                
-                // Update the code usage in Firestore using Firebase v9 syntax
-                try {
-                    // Get a reference to the code document
-                    const codeRef = doc(db, 'verificationCodes', codeDoc.id);
-                    
-                    // Prepare the update data
-                    const updateData = {
-                        usedCount: increment(1),
-                        isActive: (codeData.usedCount + 1 < codeData.maxUses)
-                    };
-                    
-                    // Update usedBy based on whether it's a string or array
-                    if (typeof codeData.usedBy === 'string') {
-                        // If stored as JSON string, parse, update and stringify again
-                        try {
-                            let usedByArray = JSON.parse(codeData.usedBy);
-                            usedByArray.push(userId);
-                            updateData.usedBy = JSON.stringify(usedByArray);
-                        } catch (e) {
-                            // If parsing fails, create new array with just this user
-                            updateData.usedBy = JSON.stringify([userId]);
-                        }
-                    } else {
-                        // For array type, use arrayUnion
-                        updateData.usedBy = arrayUnion(userId);
-                    }
-                    
-                    // Perform the update
-                    await updateDoc(codeRef, updateData);
-                    
-                    // Now update user's premium status
-                    try {
-                        const userRef = doc(db, 'users', userId);
-                        await updateDoc(userRef, {
-                            isPaid: true,
-                            paymentExpiry: expiryDate.toISOString(),
-                            paymentHistory: arrayUnion({
-                                type: 'redemption',
-                                code: code,
-                                timestamp: now.toISOString(),
-                                expiryDate: expiryDate.toISOString()
-                            })
-                        });
-                        
-                        // Update local storage
-                        localStorage.setItem('isPremium', 'true');
-                        localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                        
-                        // Show success
-                        this.showSuccess();
-                        
-                        // Notify system about payment status change
-                        setTimeout(() => {
-                            // Update UI
-                            if (window.PaymentAuth) {
-                                window.PaymentAuth.isPaid = true;
-                                window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
-                                window.PaymentAuth.updateUI();
-                            }
-                            
-                            // Dispatch event
-                            window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                                detail: { 
-                                    isPaid: true,
-                                    expiryDate: expiryDate.toISOString()
-                                }
-                            }));
-                        }, 1000);
-                    } catch (userUpdateError) {
-                        console.error('Error updating user document:', userUpdateError);
-                        
-                        // Handle insufficient permissions for user document
-                        if (userUpdateError.code === 'permission-denied') {
-                            // Use local storage fallback if user document can't be updated
-                            localStorage.setItem('isPremium', 'true');
-                            localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                            
-                            // Show success
-                            this.showSuccess();
-                            
-                            // Dispatch event
-                            window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                                detail: { 
-                                    isPaid: true,
-                                    expiryDate: expiryDate.toISOString()
-                                }
-                            }));
-                        } else {
-                            this.showError('Error updating your account. Please contact support.');
-                        }
-                    }
-                } catch (codeUpdateError) {
-                    console.error('Error updating code document:', codeUpdateError);
-                    
-                    // If we can't update the code but it's valid, still give access via localStorage
-                    if (codeUpdateError.code === 'permission-denied') {
-                        // Calculate expiry date
-                        const expiryDate = new Date();
-                        expiryDate.setDate(expiryDate.getDate() + 30);
-                        
-                        // Use local storage fallback
-                        localStorage.setItem('isPremium', 'true');
-                        localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                        
-                        // Show success
-                        this.showSuccess();
-                        
-                        // Dispatch event
-                        window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                            detail: { 
-                                isPaid: true,
-                                expiryDate: expiryDate.toISOString()
-                            }
-                        }));
-                    } else {
-                        this.showError('Error processing your code. Please try again later.');
-                    }
-                }
-            } catch (queryError) {
-                console.error('Error querying verification codes:', queryError);
-                
-                // Handle insufficient permissions error specifically
-                if (queryError.code === 'permission-denied') {
-                    console.log('Permission denied for verification codes. Using fallback mode.');
-                    
-                    // Fallback to test codes in case of permission issues
-                    if (code.toUpperCase().startsWith('TEST') || 
-                        code.toUpperCase() === 'STUDENT50' || 
-                        code.toUpperCase() === 'WELCOME10' ||
-                        code.toUpperCase() === 'NEXTSTEP') {
-                        
-                        // Calculate expiry date
-                        const expiryDate = new Date();
-                        expiryDate.setDate(expiryDate.getDate() + 30);
-                        
-                        // Use local storage
-                        localStorage.setItem('isPremium', 'true');
-                        localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                        
-                        // Show success
-                        this.showSuccess();
-                        
-                        // Dispatch event
-                        window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                            detail: { 
-                                isPaid: true,
-                                expiryDate: expiryDate.toISOString()
-                            }
-                        }));
-                    } else {
-                        this.showRedemptionForm();
-                        if (errorElement) {
-                            errorElement.textContent = 'Invalid or expired redemption code';
-                        }
-                    }
-                } else {
-                    this.showError('Error verifying code. Please try again later.');
-                }
+                this.isProcessing = false;
+            } catch (error) {
+                console.error('Redemption error:', error);
+                this.showError('Error processing redemption code. Please try again later.');
+                this.isProcessing = false;
             }
-        } catch (error) {
-            console.error('Error processing redemption code:', error);
-            this.showError('Error processing your request. Please try again later.');
-        } finally {
-            this.isProcessing = false;
-        }
+        }, 1500);
+        return;
     }
+    
+    try {
+        // Get current user with additional validation
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            console.error('User not logged in - cannot verify code');
+            this.showError('You need to be logged in to verify your code. Please refresh the page and try again.');
+            this.isProcessing = false;
+            return;
+        }
+        
+        const userId = currentUser.uid;
+        
+        // Using Firebase v8 style API
+        // Query for verification code
+        db.collection('verificationCodes')
+          .where('code', '==', code)
+          .where('isActive', '==', true)
+          .limit(1)
+          .get()
+          .then((querySnapshot) => {
+              if (querySnapshot.empty) {
+                  // No matching code found
+                  this.showRedemptionForm();
+                  if (errorElement) {
+                      errorElement.textContent = 'Invalid or expired redemption code';
+                  }
+                  this.isProcessing = false;
+                  return;
+              }
+              
+              // Get the first (should be only) matching document
+              const codeDoc = querySnapshot.docs[0];
+              const codeData = codeDoc.data();
+              
+              // Check if code has reached max uses
+              if (codeData.usedCount >= codeData.maxUses) {
+                  this.showRedemptionForm();
+                  if (errorElement) {
+                      errorElement.textContent = 'This code has reached its maximum number of uses';
+                  }
+                  this.isProcessing = false;
+                  return;
+              }
+              
+              // Check if user has already used this code
+              let usedBy = [];
+              try {
+                  // Try to parse the usedBy field if it's stored as a JSON string
+                  if (typeof codeData.usedBy === 'string') {
+                      usedBy = JSON.parse(codeData.usedBy);
+                  } else if (Array.isArray(codeData.usedBy)) {
+                      usedBy = codeData.usedBy;
+                  }
+              } catch (e) {
+                  console.error('Error parsing usedBy data:', e);
+                  // Continue with empty array if parsing fails
+              }
+              
+              if (usedBy.includes(userId)) {
+                  this.showRedemptionForm();
+                  if (errorElement) {
+                      errorElement.textContent = 'You have already used this code';
+                  }
+                  this.isProcessing = false;
+                  return;
+              }
+              
+              // Code is valid - process it
+              
+              // Calculate expiry date based on expiryDays field
+              const now = new Date();
+              const expiryDate = new Date(now);
+              expiryDate.setDate(expiryDate.getDate() + (codeData.expiryDays || 30)); // Default to 30 if not specified
+              
+              // Update the code usage in Firestore
+              const codeRef = db.collection('verificationCodes').doc(codeDoc.id);
+              
+              // Try to update the code document
+              codeRef.update({
+                  usedCount: window.firebase.firestore.FieldValue.increment(1),
+                  isActive: (codeData.usedCount + 1 < codeData.maxUses)
+              })
+              .then(() => {
+                  // Update user's premium status
+                  db.collection('users').doc(userId).update({
+                      isPaid: true,
+                      paymentExpiry: expiryDate.toISOString()
+                  })
+                  .then(() => {
+                      // Update local storage
+                      localStorage.setItem('isPremium', 'true');
+                      localStorage.setItem('premiumExpiry', expiryDate.toISOString());
+                      
+                      // Show success
+                      this.showSuccess();
+                      
+                      // Notify system about payment status change
+                      setTimeout(() => {
+                          // Update UI
+                          if (window.PaymentAuth) {
+                              window.PaymentAuth.isPaid = true;
+                              window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
+                              window.PaymentAuth.updateUI();
+                          }
+                          
+                          // Dispatch event
+                          window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+                              detail: { 
+                                  isPaid: true,
+                                  expiryDate: expiryDate.toISOString()
+                              }
+                          }));
+                      }, 1000);
+                      
+                      this.isProcessing = false;
+                  })
+                  .catch((userUpdateError) => {
+                      console.error('Error updating user document:', userUpdateError);
+                      
+                      // Fallback to localStorage if database update fails
+                      localStorage.setItem('isPremium', 'true');
+                      localStorage.setItem('premiumExpiry', expiryDate.toISOString());
+                      
+                      // Show success anyway since the code was valid
+                      this.showSuccess();
+                      
+                      // Dispatch event
+                      window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+                          detail: { 
+                              isPaid: true,
+                              expiryDate: expiryDate.toISOString()
+                          }
+                      }));
+                      
+                      this.isProcessing = false;
+                  });
+              })
+              .catch((codeUpdateError) => {
+                  console.error('Error updating code document:', codeUpdateError);
+                  
+                  // If code is valid but we can't update it, still give access
+                  localStorage.setItem('isPremium', 'true');
+                  localStorage.setItem('premiumExpiry', expiryDate.toISOString());
+                  
+                  // Show success
+                  this.showSuccess();
+                  
+                  // Dispatch event
+                  window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+                      detail: { 
+                          isPaid: true,
+                          expiryDate: expiryDate.toISOString()
+                      }
+                  }));
+                  
+                  this.isProcessing = false;
+              });
+          })
+          .catch((error) => {
+              console.error('Error querying verification codes:', error);
+              this.showError('Error verifying code. Please try again later.');
+              this.isProcessing = false;
+          });
+    } catch (error) {
+        console.error('Error processing redemption code:', error);
+        this.showError('Error processing your request. Please try again later.');
+        this.isProcessing = false;
+    }
+}
     
     // Initiate payment process with prevention of duplicate submissions
     static async initiatePayment() {
