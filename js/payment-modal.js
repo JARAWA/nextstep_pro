@@ -207,63 +207,66 @@ class PaymentModal {
             });
     }
     
-    // Check Firebase availability and adjust UI accordingly
-    static checkFirebaseStatus() {
-        try {
-            // Try to access Firebase from window
-            if (window.firebase && window.firebase.firestore) {
-                console.log('Firebase detected via window.firebase');
-                // Initialize Firestore variables
-                db = window.firebase.firestore();
+static checkFirebaseStatus() {
+    try {
+        // Try to access Firebase from window
+        if (window.firebase && window.firebase.firestore) {
+            console.log('Firebase detected via window.firebase');
+            
+            // Update the auth reference here
+            auth = window.firebase.auth();
+            
+            // Initialize Firestore variables
+            db = window.firebase.firestore();
+            
+            // Get Firestore functions
+            if (window.firebase.firestore) {
+                collection = window.firebase.firestore.collection || db.collection;
+                query = window.firebase.firestore.query || db.query;
+                where = window.firebase.firestore.where || db.where;
+                getDocs = window.firebase.firestore.getDocs || db.getDocs;
+                doc = window.firebase.firestore.doc || db.doc;
+                updateDoc = window.firebase.firestore.updateDoc || db.updateDoc;
                 
-                // Get Firestore functions
-                if (window.firebase.firestore) {
-                    collection = window.firebase.firestore.collection || db.collection;
-                    query = window.firebase.firestore.query || db.query;
-                    where = window.firebase.firestore.where || db.where;
-                    getDocs = window.firebase.firestore.getDocs || db.getDocs;
-                    doc = window.firebase.firestore.doc || db.doc;
-                    updateDoc = window.firebase.firestore.updateDoc || db.updateDoc;
-                    
-                    // Access FieldValue if available
-                    if (window.firebase.firestore.FieldValue) {
-                        increment = window.firebase.firestore.FieldValue.increment;
-                        arrayUnion = window.firebase.firestore.FieldValue.arrayUnion;
-                    }
+                // Access FieldValue if available
+                if (window.firebase.firestore.FieldValue) {
+                    increment = window.firebase.firestore.FieldValue.increment;
+                    arrayUnion = window.firebase.firestore.FieldValue.arrayUnion;
                 }
-                
-                this.firebaseAvailable = true;
-                console.log('Firebase is available. Full payment functionality enabled.');
-                this.updateUIForFirebaseStatus(true);
-                return;
-            }
-            
-            // Check if auth is available
-            if (!auth) {
-                console.warn('Firebase auth not detected. Payment functionality will be limited.');
-                this.firebaseAvailable = false;
-                this.updateUIForFirebaseStatus(false);
-                return;
-            }
-            
-            // Additional check to make sure Firebase auth is properly initialized
-            if (typeof auth.onAuthStateChanged !== 'function') {
-                console.warn('Firebase auth not properly initialized');
-                this.firebaseAvailable = false;
-                this.updateUIForFirebaseStatus(false);
-                return;
             }
             
             this.firebaseAvailable = true;
-            console.log('Firebase auth is available, but Firestore may not be fully initialized.');
+            console.log('Firebase is available. Full payment functionality enabled.');
             this.updateUIForFirebaseStatus(true);
-            
-        } catch (error) {
-            console.error('Error checking Firebase status:', error);
+            return;
+        }
+        
+        // Check if auth is available
+        if (!auth) {
+            console.warn('Firebase auth not detected. Payment functionality will be limited.');
             this.firebaseAvailable = false;
             this.updateUIForFirebaseStatus(false);
+            return;
         }
+        
+        // Additional check to make sure Firebase auth is properly initialized
+        if (typeof auth.onAuthStateChanged !== 'function') {
+            console.warn('Firebase auth not properly initialized');
+            this.firebaseAvailable = false;
+            this.updateUIForFirebaseStatus(false);
+            return;
+        }
+        
+        this.firebaseAvailable = true;
+        console.log('Firebase auth is available, but Firestore may not be fully initialized.');
+        this.updateUIForFirebaseStatus(true);
+        
+    } catch (error) {
+        console.error('Error checking Firebase status:', error);
+        this.firebaseAvailable = false;
+        this.updateUIForFirebaseStatus(false);
     }
+}
     
     // Update UI based on Firebase availability
     static updateUIForFirebaseStatus(isAvailable) {
