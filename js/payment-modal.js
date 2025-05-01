@@ -1,40 +1,7 @@
 // payment-modal.js - Updated for Firebase v9 compatibility
 
 // Import Firebase functions from your existing auth module
-import { db, auth }
-
-// Export the PaymentModal class
-export default PaymentModal;
-
-// Also make it available globally for non-module scripts
-window.PaymentModal = PaymentModal;
-
-// Initialize when DOM is fully loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize directly with a small delay to ensure DOM is ready
-    setTimeout(() => {
-        if (document.getElementById('paymentModal')) {
-            PaymentModal.init();
-            console.log('PaymentModal initialized from DOMContentLoaded event');
-        }
-    }, 1000);
-});
-
-// Handle page re-renders for SPA (Single Page Applications)
-// This ensures the modal is initialized even if the DOM changes after initial load
-document.addEventListener('DOMNodeInserted', function(e) {
-    // Check if the inserted node might contain our modal
-    if (e.target && e.target.id === 'paymentModal' || 
-        (e.target.querySelector && e.target.querySelector('#paymentModal'))) {
-        // Reinitialize with a small delay
-        setTimeout(() => {
-            if (document.getElementById('paymentModal')) {
-                PaymentModal.init();
-                console.log('PaymentModal reinitialized after DOM change');
-            }
-        }, 500);
-    }
-}); from './auth/services/firebase-config.js';
+import { db, auth } from './auth/services/firebase-config.js';
 import { 
     collection, 
     query, 
@@ -565,54 +532,40 @@ class PaymentModal {
                             }));
                         }, 1000);
     }
-    
-    // Update payment summary
-    static updateSummary() {
-        const summaryPlan = document.getElementById('summaryPlan');
-        const summaryPrice = document.getElementById('summaryPrice');
-        const summaryDiscount = document.getElementById('summaryDiscount');
-        const summaryTotal = document.getElementById('summaryTotal');
-        const discountRow = document.getElementById('discountRow');
-        
-        if (summaryPlan) {
-            summaryPlan.textContent = this.selectedPlan.name;
-        }
-        
-        if (summaryPrice) {
-            summaryPrice.textContent = `₹${this.selectedPlan.price}`;
-        }
-        
-        if (summaryDiscount) {
-            summaryDiscount.textContent = `-₹${this.selectedPlan.discountAmount}`;
-        }
-        
-        if (summaryTotal) {
-            summaryTotal.textContent = `₹${this.selectedPlan.totalPrice}`;
-        }
-        
-        // Show/hide discount row
-        if (discountRow) {
-            if (this.selectedPlan.discountAmount > 0) {
-                discountRow.style.display = 'flex';
-            } else {
-                discountRow.style.display = 'none';
-            }
-        }
-    }
-    
-    // Close the payment modal
-    static closeModal() {
-        const modal = document.getElementById('paymentModal');
-        if (modal) {
-            modal.style.display = 'none';
-            
-            // Reset processing flag
-            this.isProcessing = false;
-            
-            console.log('Payment modal closed');
-        }
-    }
 }
+
+// Initialize when DOM is fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize directly with a small delay to ensure DOM is ready
+    setTimeout(() => {
+        if (document.getElementById('paymentModal')) {
+            PaymentModal.init();
+            console.log('PaymentModal initialized from DOMContentLoaded event');
+        }
+    }, 1000);
+});
+
+// Handle page re-renders for SPA (Single Page Applications)
+// This ensures the modal is initialized even if the DOM changes after initial load
+document.addEventListener('DOMNodeInserted', function(e) {
+    // Check if the inserted node might contain our modal
+    if (e.target && e.target.id === 'paymentModal' || 
+        (e.target.querySelector && e.target.querySelector('#paymentModal'))) {
+        // Reinitialize with a small delay
+        setTimeout(() => {
+            if (document.getElementById('paymentModal')) {
+                PaymentModal.init();
+                console.log('PaymentModal reinitialized after DOM change');
+            }
+        }, 500);
+    }
+});
+
+// Export the PaymentModal class
+export default PaymentModal;
+
+// Also make it available globally for non-module scripts
+window.PaymentModal = PaymentModal;
                     } catch (userUpdateError) {
                         console.error('Error updating user document:', userUpdateError);
                         
@@ -870,6 +823,53 @@ class PaymentModal {
         const errorForm = document.getElementById('paymentError');
         if (errorForm) {
             errorForm.classList.add('active');
+        }
+    }
+    
+    // Update payment summary
+    static updateSummary() {
+        const summaryPlan = document.getElementById('summaryPlan');
+        const summaryPrice = document.getElementById('summaryPrice');
+        const summaryDiscount = document.getElementById('summaryDiscount');
+        const summaryTotal = document.getElementById('summaryTotal');
+        const discountRow = document.getElementById('discountRow');
+        
+        if (summaryPlan) {
+            summaryPlan.textContent = this.selectedPlan.name;
+        }
+        
+        if (summaryPrice) {
+            summaryPrice.textContent = `₹${this.selectedPlan.price}`;
+        }
+        
+        if (summaryDiscount) {
+            summaryDiscount.textContent = `-₹${this.selectedPlan.discountAmount}`;
+        }
+        
+        if (summaryTotal) {
+            summaryTotal.textContent = `₹${this.selectedPlan.totalPrice}`;
+        }
+        
+        // Show/hide discount row
+        if (discountRow) {
+            if (this.selectedPlan.discountAmount > 0) {
+                discountRow.style.display = 'flex';
+            } else {
+                discountRow.style.display = 'none';
+            }
+        }
+    }
+    
+    // Close the payment modal
+    static closeModal() {
+        const modal = document.getElementById('paymentModal');
+        if (modal) {
+            modal.style.display = 'none';
+            
+            // Reset processing flag
+            this.isProcessing = false;
+            
+            console.log('Payment modal closed');
         }
     }
     
