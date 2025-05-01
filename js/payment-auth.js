@@ -12,6 +12,7 @@ class PaymentAuth {
     static paymentExpiry = null;
     static user = null;
     static initialized = false;
+    static _handlers = new WeakMap();
     
     /**
      * Initialize the payment authentication service
@@ -21,14 +22,14 @@ class PaymentAuth {
         
         // Prevent double initialization
         if (this.initialized) {
-        console.log('PaymentAuth already initialized, skipping');
-        return;
-    }
-    this.initialized = true;
+            console.log('PaymentAuth already initialized, skipping');
+            return;
+        }
+        this.initialized = true;
         
         try {
             // Load the dedicated payment modal
-            this.loadPaymentModal();
+            await this.loadPaymentModal();
             
             // Check if user is already logged in
             if (window.Auth && window.Auth.isLoggedIn && window.Auth.user) {
@@ -67,33 +68,33 @@ class PaymentAuth {
         }
     }
     
-/**
- * Load payment modal HTML
- */
-static loadPaymentModal() {
-    return new Promise((resolve, reject) => {
-        fetch('components/payment-modal.html')
-            .then(response => response.text())
-            .then(html => {
-                // Add the payment modal to the document
-                const modalContainer = document.createElement('div');
-                modalContainer.innerHTML = html;
-                document.body.appendChild(modalContainer.firstChild);
-                
-                console.log('Payment modal HTML loaded successfully');
-                
-                // Initialize PaymentModal if available
-                if (window.PaymentModal && typeof window.PaymentModal.init === 'function') {
-                    window.PaymentModal.init();
-                }
-                resolve();
-            })
-            .catch(error => {
-                console.error('Error loading payment modal HTML:', error);
-                reject(error);
-            });
-    });
-}
+    /**
+     * Load payment modal HTML
+     */
+    static loadPaymentModal() {
+        return new Promise((resolve, reject) => {
+            fetch('components/payment-modal.html')
+                .then(response => response.text())
+                .then(html => {
+                    // Add the payment modal to the document
+                    const modalContainer = document.createElement('div');
+                    modalContainer.innerHTML = html;
+                    document.body.appendChild(modalContainer.firstChild);
+                    
+                    console.log('Payment modal HTML loaded successfully');
+                    
+                    // Initialize PaymentModal if available
+                    if (window.PaymentModal && typeof window.PaymentModal.init === 'function') {
+                        window.PaymentModal.init();
+                    }
+                    resolve();
+                })
+                .catch(error => {
+                    console.error('Error loading payment modal HTML:', error);
+                    reject(error);
+                });
+        });
+    }
     
     /**
      * Observe DOM changes to handle dynamically added premium elements
@@ -219,13 +220,51 @@ static loadPaymentModal() {
         
         // Add handlers to elements with data-requires-premium="true"
         document.querySelectorAll('[data-requires-premium="true"]').forEach(element => {
-            // Remove existing handler if any (to prevent duplicates)
-            // In setupPremiumFeatures, update the event listener code:
-            element.removeEventListener('click', this.premiumClickHandler);
-
-            // Add click handler to show payment modal for non-premium users
-            const boundHandler = (e) => this.premiumClickHandler(e);
-            element.addEventListener('click', boundHandler);
+            // Get existing handler if any
+            const existingHandler = this._handlers.get(element);
+            if (existingHandler) {
+                // Remove existing handler to prevent duplicates
+                element.removeEventListener('click', existingHandler);
+            }
+            
+            // Create a new bound handler
+            const newHandler = (e) => {
+                if (!this.isPaid) {
+                    // Stop all default actions
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    console.log('Premium feature clicked but not paid, showing payment modal');
+                    
+                    // Check if user is logged in first
+                    if (!window.Auth || !window.Auth.isLoggedIn) {
+                        if (window.Modal && typeof window.Modal.show === 'function') {
+                            window.Modal.show();
+                        } else {
+                            console.log('Login required');
+                            alert('Please login to access premium features');
+                        }
+                        return;
+                    }
+                    
+                    // Show the premium feature notification
+                    this.showPremiumFeatureNotification(e.currentTarget);
+                    
+                    // Show payment modal after a short delay
+                    setTimeout(() => {
+                        if (window.PaymentModal && typeof window.PaymentModal.openModal === 'function') {
+                            window.PaymentModal.openModal();
+                        } else {
+                            this.showPaymentModal();
+                        }
+                    }, 300);
+                    
+                    return false;
+                }
+            };
+            
+            // Store the handler reference for future removal
+            this._handlers.set(element, newHandler);
             
             // Add premium-disabled class initially if not paid
             if (!this.isPaid) {
@@ -251,7 +290,9 @@ static loadPaymentModal() {
                 }
             }
             
-       });
+            // Add the new handler
+            element.addEventListener('click', newHandler);
+        });
         
         // Add show premium modal handler to all premium buttons
         const premiumButtons = document.querySelectorAll('.premium-btn');
@@ -270,38 +311,12 @@ static loadPaymentModal() {
     }
     
     /**
-     * Handler for clicks on premium elements
+     * Handler for clicks on premium elements (this is now handled directly in setupPremiumFeatures)
      */
-    static premiumClickHandler = function(e) {
-        if (!PaymentAuth.isPaid) {
-            // Stop all default actions
-            e.preventDefault();
-            e.stopPropagation();
-            
-            console.log('Premium feature clicked but not paid, showing payment modal');
-            
-            // Check if user is logged in first
-            if (!window.Auth || !window.Auth.isLoggedIn) {
-                if (window.Modal && typeof window.Modal.show === 'function') {
-                    window.Modal.show();
-                } else {
-                    console.log('Login required');
-                    alert('Please login to access premium features');
-                }
-                return;
-            }
-            
-            // Show the premium feature notification
-            PaymentAuth.showPremiumFeatureNotification(e.currentTarget);
-            
-            // Show payment modal after a short delay
-            setTimeout(() => {
-                PaymentAuth.showPaymentModal();
-            }, 300);
-            
-            return false;
-        }
-    };
+    static premiumClickHandler(e) {
+        // This is now handled in setupPremiumFeatures with properly bound handlers
+        console.log('Legacy premiumClickHandler called - should not be called directly');
+    }
     
     /**
      * Show a brief "premium feature" notification that's properly positioned
@@ -521,34 +536,34 @@ static loadPaymentModal() {
     /**
      * Show payment modal with options
      */
-static showPaymentModal() {
-    // Check if user is logged in
-    if (!window.Auth || !window.Auth.isLoggedIn) {
-        if (window.Modal && typeof window.Modal.show === 'function') {
-            window.Modal.show();
-            return;
-        } else {
-            alert('Please login first');
-            return;
-        }
-    }
-    
-    // Look for the dedicated payment modal first
-    let paymentModal = document.getElementById('paymentModal');
-    
-    if (paymentModal) {
-        // If PaymentModal handler is available, use it instead
-        if (window.PaymentModal && typeof window.PaymentModal.openModal === 'function') {
-            console.log('Using dedicated PaymentModal.openModal()');
-            window.PaymentModal.openModal();
-            return;
+    static showPaymentModal() {
+        // Check if user is logged in
+        if (!window.Auth || !window.Auth.isLoggedIn) {
+            if (window.Modal && typeof window.Modal.show === 'function') {
+                window.Modal.show();
+                return;
+            } else {
+                alert('Please login first');
+                return;
+            }
         }
         
-        // Otherwise, just show the modal directly
-        paymentModal.style.display = 'block';
-        console.log('Showing dedicated payment modal directly');
-        return;
-    }
+        // Look for the dedicated payment modal first
+        let paymentModal = document.getElementById('paymentModal');
+        
+        if (paymentModal) {
+            // If PaymentModal handler is available, use it instead
+            if (window.PaymentModal && typeof window.PaymentModal.openModal === 'function') {
+                console.log('Using dedicated PaymentModal.openModal()');
+                window.PaymentModal.openModal();
+                return;
+            }
+            
+            // Otherwise, just show the modal directly
+            paymentModal.style.display = 'block';
+            console.log('Showing dedicated payment modal directly');
+            return;
+        }
         
         // Fall back to the dynamic creation if needed
         paymentModal = document.createElement('div');
@@ -619,180 +634,10 @@ static showPaymentModal() {
             }
         });
         
-        // Add payment modal styles
-        this.addPaymentModalStyles();
-        
         // Show the modal
         paymentModal.style.display = 'block';
         console.log('Created and showed dynamic payment modal');
     }
-    
-    /**
-     * Add payment modal styles
-     */
-static addPaymentModalStyles() {
-    // Check if styles already exist
-    if (document.getElementById('payment-modal-styles')) return;
-    
-    const styleEl = document.createElement('style');
-    styleEl.id = 'payment-modal-styles';
-    
-    styleEl.innerHTML = `
-        .payment-modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.4);
-            animation: fadeIn 0.3s ease;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        .payment-modal-content {
-            background-color: #ffffff;
-            margin: 5% auto;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            width: 90%;
-            max-width: 600px;
-            animation: slideIn 0.3s ease;
-        }
-        
-        @keyframes slideIn {
-            from { transform: translateY(-50px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
-        .payment-modal-content h2 {
-            color: #333;
-            margin-top: 0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .payment-modal-content h2 i {
-            color: #FFD700;
-        }
-        
-        .payment-options {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            margin-top: 25px;
-        }
-        
-        .payment-option {
-            border: 1px solid #eee;
-            border-radius: 8px;
-            padding: 20px;
-            transition: all 0.3s ease;
-        }
-        
-        .payment-option:hover {
-            border-color: #FFD700;
-            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.1);
-        }
-        
-        .payment-option h3 {
-            margin-top: 0;
-            color: #333;
-        }
-        
-        .payment-btn {
-            background-color: #2D88FF;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 4px;
-            width: 100%;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: bold;
-        }
-        
-        .payment-btn:hover {
-            background-color: #1A73E8;
-            transform: translateY(-2px);
-        }
-        
-        .verification-form {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        
-        .verification-form input {
-            flex: 1;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-            text-transform: uppercase;
-        }
-        
-        .verification-form input:focus {
-            border-color: #006B6B;
-            outline: none;
-        }
-        
-        .verify-btn {
-            background-color: #006B6B;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: bold;
-            min-width: 100px;
-        }
-        
-        .verify-btn:hover {
-            background-color: #005757;
-            transform: translateY(-2px);
-        }
-        
-        .error-message {
-            color: #d32f2f;
-            font-size: 14px;
-            margin-top: 10px;
-            min-height: 20px;
-        }
-        
-        /* Add these crucial fixes */
-        .payment-form {
-            display: none;
-        }
-        
-        .payment-form.active {
-            display: block !important;
-        }
-        
-        /* Fix any z-index issues */
-        #paymentModal {
-            z-index: 100000 !important; 
-        }
-        
-        /* Ensure modal content is properly centered and sized */
-        .payment-modal-content {
-            max-width: 600px;
-            margin: 5% auto;
-            padding: 30px;
-        }
-    `;
-    
-    document.head.appendChild(styleEl);
-}
     
     /**
      * Initialize Razorpay payment
@@ -1128,7 +973,7 @@ static addPaymentModalStyles() {
     }
 }
 
-// Replace the DOMContentLoaded handler with this:
+// Initialize PaymentAuth when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing PaymentAuth');
     
@@ -1141,7 +986,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// For Auth module initialization event
+// Also initialize when Auth is ready
 document.addEventListener('authInitialized', () => {
     console.log('Auth initialized, ensuring PaymentAuth is initialized');
     // Ensure PaymentAuth is initialized after Auth
