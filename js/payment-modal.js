@@ -1,27 +1,20 @@
-// payment-modal.js - Non-module version with improved initialization
+/**
+ * payment-modal.js - Handles payment modal UI interactions
+ * 
+ * This script manages the payment modal interface including:
+ * - Displaying/hiding the modal
+ * - Plan selection
+ * - Coupon application
+ * - Redemption code processing
+ * - Payment process initiation
+ */
 
-// Define safer references to Firebase objects
-let auth, db, collection, query, where, getDocs, doc, updateDoc, increment, arrayUnion;
-
-// Using window.firebaseAuth from index.html
-auth = { 
-  currentUser: window.Auth && window.Auth.user ? window.Auth.user : null 
-};
-console.log('Auth object available:', !!auth);
-
-// Define placeholder functions that will be replaced if Firestore is available
-db = null;
-collection = query = where = getDocs = doc = updateDoc = increment = arrayUnion = function() {
-    console.warn('Firestore function called but Firestore is not initialized');
-    return null;
-};
-
-// We'll check Firebase availability in the init method
-console.log('PaymentModal script loaded - will check Firebase availability during initialization');
-
-// PaymentModal class - handles payment modal functionality
+// PaymentModal class
 class PaymentModal {
     // Class properties
+    static modal = null;
+    static isInitialized = false;
+    static isProcessing = false;
     static selectedPlan = {
         type: 'monthly',
         name: '1 Month Premium',
@@ -30,627 +23,322 @@ class PaymentModal {
         totalPrice: 499
     };
     
-    // Flag to track Firebase availability
-    static firebaseAvailable = false;
-    
-    // Add a flag to prevent duplicate initiations
-    static isProcessing = false;
-    
-    // Initialize the payment modal
-static init() {
-    console.log('Initializing PaymentModal');
-    
-    // Check Firebase availability first
-    this.checkFirebaseStatus();
-    
-    // Check if the modal exists in the DOM
-    const paymentModal = document.getElementById('paymentModal');
-    if (!paymentModal) {
-        console.log('Payment modal not found in the DOM, attempting to load it');
-        // Try to load the payment modal HTML
-        this.loadHTML();
-        return; // Exit initialization, it will be called again after HTML is loaded
-    }
+    /**
+     * Initialize the payment modal
+     */
+    static init() {
+        console.log('Initializing PaymentModal');
         
-        // First, hide all forms
-        const forms = paymentModal.querySelectorAll('.payment-form');
-        forms.forEach(form => {
-            form.classList.remove('active');
-        });
-        
-        // Show only the payment form initially
-        const paymentForm = document.getElementById('paymentForm');
-        if (paymentForm) {
-            paymentForm.classList.add('active');
-        }
-        
-        // Add close button event listeners
-        const closeButtons = paymentModal.querySelectorAll('.close');
-        closeButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.preventDefault(); // Prevent default action
-                e.stopPropagation(); // Stop propagation
-                this.closeModal();
-            });
-        });
-        
-        // Fix potential duplicate event listeners for payment button
-        const paymentButton = paymentModal.querySelector('.payment-btn');
-        if (paymentButton) {
-            // Remove existing onclick attribute to prevent double triggering
-            paymentButton.removeAttribute('onclick');
-            
-            // Add event listener directly
-            paymentButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.initiatePayment();
-            });
-        }
-        
-        // Setup coupon toggle
-        const couponToggle = paymentModal.querySelector('.coupon-toggle');
-        if (couponToggle) {
-            couponToggle.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.toggleCoupon();
-            });
-        }
-        
-        // Setup coupon apply button
-        const applyButton = paymentModal.querySelector('.coupon-btn');
-        if (applyButton) {
-            applyButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.applyCoupon();
-            });
-        }
-        
-        // Setup redemption button with proper event handling
-        const redemptionButton = paymentModal.querySelector('.redemption-btn');
-        if (redemptionButton) {
-            redemptionButton.removeAttribute('onclick');
-            redemptionButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.redeemCode();
-            });
-        }
-        
-        // Setup redemption link
-        const redemptionLink = paymentModal.querySelector('.redemption-option a');
-        if (redemptionLink) {
-            redemptionLink.removeAttribute('onclick');
-            redemptionLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.showRedemptionForm();
-            });
-        }
-        
-        // Setup back to payment link
-        const backToPaymentLink = paymentModal.querySelector('.redemption-footer a');
-        if (backToPaymentLink) {
-            backToPaymentLink.removeAttribute('onclick');
-            backToPaymentLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.showPaymentForm();
-            });
-        }
-        
-        // Setup success button
-        const successButton = paymentModal.querySelector('.success-btn');
-        if (successButton) {
-            successButton.removeAttribute('onclick');
-            successButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.closeModal();
-            });
-        }
-        
-        // Setup retry button
-        const retryButton = paymentModal.querySelector('.retry-btn');
-        if (retryButton) {
-            retryButton.removeAttribute('onclick');
-            retryButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.showPaymentForm();
-            });
-        }
-        
-        console.log('Payment modal initialization completed');
-    }
-    
-    // Load payment modal HTML
-    static loadHTML() {
-        console.log('Attempting to load payment modal HTML');
-        const modalContainer = document.getElementById('modal-container');
-        
-        if (!modalContainer) {
-            console.error('Modal container not found!');
+        // Prevent multiple initializations
+        if (this.isInitialized) {
+            console.log('PaymentModal already initialized');
             return;
         }
         
-        // Check if payment modal already exists
+        // Get the modal element
+        this.modal = document.getElementById('paymentModal');
+        if (!this.modal) {
+            console.log('Payment modal not found in DOM, attempting to load it');
+            this.loadHTML();
+            return;
+        }
+        
+        // Setup event listeners
+        this.setupEventListeners();
+        
+        // Show initial form
+        this.showPaymentForm();
+        
+        // Set initialization flag
+        this.isInitialized = true;
+        
+        console.log('PaymentModal initialized successfully');
+    }
+    
+    /**
+     * Load the payment modal HTML
+     */
+    static loadHTML() {
+        console.log('Loading payment modal HTML');
+        
+        // Check if modal already exists
         if (document.getElementById('paymentModal')) {
-            console.log('Payment modal already exists, initializing');
+            console.log('Payment modal already exists');
             this.init();
             return;
         }
         
-        // Fetch the payment modal HTML and add it to the page
+        // Fetch the HTML
         fetch('components/payment-modal.html')
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP error! Status: ${response.status}`);
                 }
                 return response.text();
             })
             .then(html => {
-                // Create a temporary div to hold the HTML
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = html;
+                // Create temporary container
+                const tempContainer = document.createElement('div');
+                tempContainer.innerHTML = html;
                 
-                // Append the first child (the payment modal) to the modal container
-                // Make sure we only append it if it doesn't exist yet
-                if (!document.getElementById('paymentModal')) {
-                    modalContainer.appendChild(tempDiv.firstChild);
-                    console.log('Payment modal HTML loaded successfully');
-                    
-                    // Now initialize the payment modal
-                    setTimeout(() => this.init(), 300);
-                }
+                // Append to body
+                document.body.appendChild(tempContainer.firstElementChild);
+                
+                console.log('Payment modal HTML loaded successfully');
+                
+                // Initialize the modal
+                setTimeout(() => this.init(), 300);
             })
             .catch(error => {
                 console.error('Error loading payment modal HTML:', error);
             });
     }
     
-static checkFirebaseStatus() {
-      // Refresh the currentUser reference
-    auth.currentUser = window.Auth && window.Auth.user ? window.Auth.user : null;
-        try {
-        if (window.firebase && window.firebase.firestore) {
-            console.log('Firebase detected via window.firebase');
-
-            // Declare the Firebase-related variables
-            const auth = window.firebase.auth();
-            const db = window.firebase.firestore();
-
-            // Initialize helper functions
-            const collection = function(path) {
-                return db.collection(path);
-            };
-
-            const query = function(collRef, ...constraints) {
-                let ref = collRef;
-                constraints.forEach(constraint => {
-                    if (constraint && constraint.field) {
-                        ref = ref.where(constraint.field, constraint.op, constraint.value);
-                    }
-                });
-                return ref;
-            };
-
-            const where = function(field, op, value) {
-                return { field, op, value };
-            };
-
-            const getDocs = function(q) {
-                return q.get();
-            };
-
-            const doc = function(collOrPath, ...pathSegments) {
-                if (typeof collOrPath === 'string') {
-                    return db.doc(collOrPath);
-                } else {
-                    return collOrPath.doc(pathSegments[0]);
-                }
-            };
-
-            const updateDoc = function(docRef, data) {
-                return docRef.update(data);
-            };
-
-            let increment, arrayUnion;
-            if (window.firebase.firestore.FieldValue) {
-                increment = function(val) {
-                    return window.firebase.firestore.FieldValue.increment(val);
-                };
-
-                arrayUnion = function(...elements) {
-                    return window.firebase.firestore.FieldValue.arrayUnion(...elements);
-                };
+    /**
+     * Setup all event listeners
+     */
+    static setupEventListeners() {
+        if (!this.modal) return;
+        
+        // Close buttons
+        const closeButtons = this.modal.querySelectorAll('.close');
+        closeButtons.forEach(button => {
+            button.addEventListener('click', () => this.closeModal());
+        });
+        
+        // Close when clicking outside the modal
+        this.modal.addEventListener('click', (e) => {
+            if (e.target === this.modal) {
+                this.closeModal();
             }
-
-            this.firebaseAvailable = true;
-            console.log('Firebase is available. Full payment functionality enabled.');
-            this.updateUIForFirebaseStatus(true);
-        } else {
-            throw new Error("Firebase or Firestore not found in window object");
+        });
+        
+        // Plan selection
+        const planOptions = this.modal.querySelectorAll('.plan-option');
+        planOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const planType = option.getAttribute('data-plan');
+                this.selectPlan(planType, option);
+            });
+        });
+        
+        // Coupon toggle
+        const couponToggle = this.modal.querySelector('.coupon-toggle');
+        if (couponToggle) {
+            couponToggle.addEventListener('click', () => this.toggleCoupon());
         }
-    } catch (error) {
-        console.error('Error checking Firebase status:', error);
-        this.firebaseAvailable = false;
-        this.updateUIForFirebaseStatus(false);
-    }
-}
-
-    
-    // Update UI based on Firebase availability
-    static updateUIForFirebaseStatus(isAvailable) {
-        if (!isAvailable) {
-            // Adjust UI for Firebase unavailability
-            const paymentModal = document.getElementById('paymentModal');
-            if (!paymentModal) return;
-            
-            // Update payment button to direct to redemption form
-            const paymentButton = paymentModal.querySelector('.payment-btn');
-            if (paymentButton) {
-                paymentButton.textContent = 'Use Redemption Code';
-                
-                // Remove existing listeners and add one for redemption
-                paymentButton.removeEventListener('click', this.initiatePayment);
-                paymentButton.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.showRedemptionForm();
-                });
-            }
-            
-            // Add notification about limited functionality
-            const paymentHeader = paymentModal.querySelector('h2');
-            if (paymentHeader) {
-                const notificationExists = paymentModal.querySelector('.firebase-notification');
-                if (!notificationExists) {
-                    const notification = document.createElement('div');
-                    notification.className = 'firebase-notification';
-                    notification.style.backgroundColor = '#fff3cd';
-                    notification.style.color = '#856404';
-                    notification.style.padding = '10px';
-                    notification.style.marginBottom = '15px';
-                    notification.style.borderRadius = '4px';
-                    notification.style.fontSize = '14px';
-                    notification.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Online payment is currently unavailable. Please use a redemption code.';
-                    
-                    paymentHeader.parentNode.insertBefore(notification, paymentHeader.nextSibling);
-                }
-            }
-            
-            // Hide elements that require Firebase
-            const elementsRequiringFirebase = paymentModal.querySelectorAll('.requires-firebase');
-            elementsRequiringFirebase.forEach(el => {
-                el.style.display = 'none';
+        
+        // Apply coupon button
+        const couponButton = this.modal.querySelector('.coupon-btn');
+        if (couponButton) {
+            couponButton.addEventListener('click', () => this.applyCoupon());
+        }
+        
+        // Payment button
+        const paymentButton = this.modal.querySelector('.payment-btn');
+        if (paymentButton) {
+            paymentButton.addEventListener('click', () => this.initiatePayment());
+        }
+        
+        // Redemption link
+        const redemptionLink = this.modal.querySelector('.redemption-option a');
+        if (redemptionLink) {
+            redemptionLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showRedemptionForm();
             });
-        } else {
-            // Firebase is available, ensure normal UI
-            const paymentModal = document.getElementById('paymentModal');
-            if (!paymentModal) return;
-            
-            // Remove notification if it exists
-            const notification = paymentModal.querySelector('.firebase-notification');
-            if (notification) {
-                notification.remove();
-            }
-            
-            // Restore payment button
-            const paymentButton = paymentModal.querySelector('.payment-btn');
-            if (paymentButton && paymentButton.textContent === 'Use Redemption Code') {
-                paymentButton.textContent = 'Proceed to Secure Payment';
-                
-                // Update event listener
-                paymentButton.removeEventListener('click', this.showRedemptionForm);
-                paymentButton.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.initiatePayment();
-                });
-            }
-            
-            // Show elements that require Firebase
-            const elementsRequiringFirebase = paymentModal.querySelectorAll('.requires-firebase');
-            elementsRequiringFirebase.forEach(el => {
-                el.style.display = '';
+        }
+        
+        // Redemption button
+        const redemptionButton = this.modal.querySelector('.redemption-btn');
+        if (redemptionButton) {
+            redemptionButton.addEventListener('click', () => this.redeemCode());
+        }
+        
+        // Return to payment link
+        const returnLink = this.modal.querySelector('.redemption-footer a');
+        if (returnLink) {
+            returnLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showPaymentForm();
             });
+        }
+        
+        // Success button
+        const successButton = this.modal.querySelector('.success-btn');
+        if (successButton) {
+            successButton.addEventListener('click', () => this.closeModal());
+        }
+        
+        // Retry button
+        const retryButton = this.modal.querySelector('.retry-btn');
+        if (retryButton) {
+            retryButton.addEventListener('click', () => this.showPaymentForm());
         }
     }
     
-    // Open the payment modal
+    /**
+     * Open the payment modal
+     */
     static openModal() {
-        console.log('Opening payment modal');
-        
-        // First, make sure the modal exists
-        let modal = document.getElementById('paymentModal');
-        
-        // If it doesn't exist, load it
-        if (!modal) {
-            console.log('Payment modal not found, trying to load it');
-            this.loadHTML();
-            
-            // Wait a bit for the modal to load, then try again
-            setTimeout(() => {
-                modal = document.getElementById('paymentModal');
-                if (modal) {
-                    this.finishOpeningModal(modal);
-                } else {
-                    console.error('Could not load payment modal');
-                }
-            }, 1000);
+        if (!this.modal) {
+            this.init();
             return;
         }
         
-        // If modal exists, open it
-        this.finishOpeningModal(modal);
-    }
-    
-    // Helper method to finish opening the modal
-    static finishOpeningModal(modal) {
         // Reset processing flag
         this.isProcessing = false;
         
-        // Reset any previously active forms
-        const allForms = modal.querySelectorAll('.payment-form');
-        allForms.forEach(form => {
-            form.classList.remove('active');
-        });
-        
-        // Show the main payment form
-        const paymentForm = document.getElementById('paymentForm');
-        if (paymentForm) {
-            paymentForm.classList.add('active');
-        }
+        // Show the payment form
+        this.showPaymentForm();
         
         // Display the modal
-        modal.style.display = 'block';
+        this.modal.style.display = 'block';
         
-        // Update the payment summary
-        this.updateSummary();
-        
-        // Check Firebase status again when opening the modal
-        this.checkFirebaseStatus();
-        
-        console.log('Payment modal opened successfully');
+        console.log('Payment modal opened');
     }
     
-    // Process redemption code - updated for Firebase v9 with improved error handling
-static redeemCode() {
-    // Prevent multiple submissions
-    if (this.isProcessing) {
-        console.log('Redemption already in progress, ignoring duplicate request');
-        return;
-    }
-    
-    this.isProcessing = true;
-    console.log('Processing redemption code');
-    
-    const redemptionCode = document.getElementById('redemptionCode');
-    if (!redemptionCode) {
+    /**
+     * Close the payment modal
+     */
+    static closeModal() {
+        if (!this.modal) return;
+        
+        this.modal.style.display = 'none';
         this.isProcessing = false;
-        return;
+        
+        console.log('Payment modal closed');
     }
     
-    const code = redemptionCode.value.trim();
-    const errorElement = document.getElementById('redemptionCodeError');
-    
-    if (!code) {
-        if (errorElement) {
-            errorElement.textContent = 'Please enter a redemption code';
-        }
-        this.isProcessing = false;
-        return;
-    }
-    
-    // Clear previous errors
-    if (errorElement) {
-        errorElement.textContent = '';
-    }
-    
-    // Show loading state
-    this.showLoading();
-    
-    // Fallback mode - always use localStorage for testing
-    setTimeout(() => {
-        try {
-            // For testing purposes
-            if (code.toUpperCase().startsWith('TEST') || 
-                code.toUpperCase() === 'STUDENT50' || 
-                code.toUpperCase() === 'WELCOME10' ||
-                code.toUpperCase() === 'NEXTSTEP') {
-                
-                // Calculate expiry date (30 days from now)
-                const now = new Date();
-                const expiryDate = new Date(now);
-                expiryDate.setDate(expiryDate.getDate() + 30);
-                
-                // Update localStorage
-                localStorage.setItem('isPremium', 'true');
-                localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                
-                // Show success message
-                this.showSuccess();
-                
-                // Dispatch event for any listeners
-                window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                    detail: { 
-                        isPaid: true,
-                        expiryDate: expiryDate.toISOString()
-                    }
-                }));
-                
-                // Update PaymentAuth if available
-                if (window.PaymentAuth) {
-                    window.PaymentAuth.isPaid = true;
-                    window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
-                    setTimeout(() => {
-                        if (window.PaymentAuth.updateUI) {
-                            window.PaymentAuth.updateUI();
-                        }
-                    }, 500);
-                }
-            } else {
-                // Invalid code
-                this.showRedemptionForm();
-                if (errorElement) {
-                    errorElement.textContent = 'Invalid or expired redemption code';
-                }
-            }
-            
-            this.isProcessing = false;
-        } catch (error) {
-            console.error('Redemption error:', error);
-            this.showError('Error processing redemption code. Please try again later.');
-            this.isProcessing = false;
-        }
-    }, 1500);
-}
-    
-    // Initiate payment process with prevention of duplicate submissions
- static initiatePayment() {
-    // Prevent multiple submissions
-    if (this.isProcessing) {
-        console.log('Payment already in progress, ignoring duplicate request');
-        return;
-    }
-    
-    this.isProcessing = true;
-    console.log('Initiating payment process');
-    
-    this.showLoading();
-    
-    // Always show test mode message - this simplifies the code tremendously
-    setTimeout(() => {
-        try {
-            this.showError('Payment system is currently in testing mode. Please use a redemption code instead.');
-        } catch (error) {
-            console.error('Payment initialization error:', error);
-            this.showError('Failed to initialize payment. Please try redemption code instead.');
-        } finally {
-            this.isProcessing = false;
-        }
-    }, 1500);
-}
-    
-    // Show payment form
+    /**
+     * Show the payment form
+     */
     static showPaymentForm() {
-        const paymentModal = document.getElementById('paymentModal');
-        if (!paymentModal) return;
+        if (!this.modal) return;
         
-        // Reset processing flag
-        this.isProcessing = false;
+        // Hide all forms
+        const forms = this.modal.querySelectorAll('.payment-form');
+        forms.forEach(form => form.classList.remove('active'));
         
-        // Hide all forms first
-        const allForms = paymentModal.querySelectorAll('.payment-form');
-        allForms.forEach(form => form.classList.remove('active'));
-        
-        // Then show the payment form
+        // Show payment form
         const paymentForm = document.getElementById('paymentForm');
         if (paymentForm) {
             paymentForm.classList.add('active');
-            // Update the payment summary
-            this.updateSummary();
         }
+        
+        // Update summary
+        this.updateSummary();
     }
     
-    // Show redemption form
+    /**
+     * Show the redemption form
+     */
     static showRedemptionForm() {
-        const paymentModal = document.getElementById('paymentModal');
-        if (!paymentModal) return;
+        if (!this.modal) return;
         
-        // Reset processing flag
-        this.isProcessing = false;
+        // Hide all forms
+        const forms = this.modal.querySelectorAll('.payment-form');
+        forms.forEach(form => form.classList.remove('active'));
         
-        // Hide all forms first
-        const allForms = paymentModal.querySelectorAll('.payment-form');
-        allForms.forEach(form => form.classList.remove('active'));
-        
-        // Then show the redemption form
+        // Show redemption form
         const redemptionForm = document.getElementById('redemptionForm');
         if (redemptionForm) {
             redemptionForm.classList.add('active');
             
             // Focus on the redemption code input
-            const redemptionCode = document.getElementById('redemptionCode');
-            if (redemptionCode) {
-                setTimeout(() => redemptionCode.focus(), 100);
+            const codeInput = document.getElementById('redemptionCode');
+            if (codeInput) {
+                setTimeout(() => codeInput.focus(), 100);
             }
         }
     }
     
-    // Show loading state
+    /**
+     * Show loading state
+     */
     static showLoading() {
-        const paymentModal = document.getElementById('paymentModal');
-        if (!paymentModal) return;
+        if (!this.modal) return;
         
-        // Hide all forms first
-        const allForms = paymentModal.querySelectorAll('.payment-form');
-        allForms.forEach(form => form.classList.remove('active'));
+        // Hide all forms
+        const forms = this.modal.querySelectorAll('.payment-form');
+        forms.forEach(form => form.classList.remove('active'));
         
-        // Then show the loading form
+        // Show loading form
         const loadingForm = document.getElementById('paymentLoading');
         if (loadingForm) {
             loadingForm.classList.add('active');
         }
     }
     
-    // Show success message
+    /**
+     * Show success message
+     */
     static showSuccess() {
-        const paymentModal = document.getElementById('paymentModal');
-        if (!paymentModal) return;
+        if (!this.modal) return;
         
         // Reset processing flag
         this.isProcessing = false;
         
-        // Hide all forms first
-        const allForms = paymentModal.querySelectorAll('.payment-form');
-        allForms.forEach(form => form.classList.remove('active'));
+        // Hide all forms
+        const forms = this.modal.querySelectorAll('.payment-form');
+        forms.forEach(form => form.classList.remove('active'));
         
-        // Then show the success form
+        // Show success form
         const successForm = document.getElementById('paymentSuccess');
         if (successForm) {
             successForm.classList.add('active');
         }
+        
+        // If PaymentAuth is available, update its state
+        if (window.PaymentAuth) {
+            // Trigger UI update
+            setTimeout(() => {
+                if (typeof window.PaymentAuth.updateUI === 'function') {
+                    window.PaymentAuth.updateUI();
+                }
+            }, 500);
+        }
     }
     
-    // Show error message
+    /**
+     * Show error message
+     * @param {string} message - Error message to display
+     */
     static showError(message) {
-        const paymentModal = document.getElementById('paymentModal');
-        if (!paymentModal) return;
+        if (!this.modal) return;
         
         // Reset processing flag
         this.isProcessing = false;
         
-        // Hide all forms first
-        const allForms = paymentModal.querySelectorAll('.payment-form');
-        allForms.forEach(form => form.classList.remove('active'));
+        // Hide all forms
+        const forms = this.modal.querySelectorAll('.payment-form');
+        forms.forEach(form => form.classList.remove('active'));
         
-        // Update the error message if provided
-        if (message) {
-            const errorMessage = document.getElementById('errorMessage');
-            if (errorMessage) {
-                errorMessage.textContent = message;
-            }
+        // Update error message
+        const errorMessageEl = document.getElementById('errorMessage');
+        if (errorMessageEl && message) {
+            errorMessageEl.textContent = message;
         }
         
-// Then show the error form
+        // Show error form
         const errorForm = document.getElementById('paymentError');
         if (errorForm) {
             errorForm.classList.add('active');
         }
     }
     
-    // Update payment summary
+    /**
+     * Update payment summary
+     */
     static updateSummary() {
+        // Get summary elements
         const summaryPlan = document.getElementById('summaryPlan');
         const summaryPrice = document.getElementById('summaryPrice');
         const summaryDiscount = document.getElementById('summaryDiscount');
         const summaryTotal = document.getElementById('summaryTotal');
         const discountRow = document.getElementById('discountRow');
         
+        // Update text content
         if (summaryPlan) {
             summaryPlan.textContent = this.selectedPlan.name;
         }
@@ -669,28 +357,15 @@ static redeemCode() {
         
         // Show/hide discount row
         if (discountRow) {
-            if (this.selectedPlan.discountAmount > 0) {
-                discountRow.style.display = 'flex';
-            } else {
-                discountRow.style.display = 'none';
-            }
+            discountRow.style.display = this.selectedPlan.discountAmount > 0 ? 'flex' : 'none';
         }
     }
     
-    // Close the payment modal
-    static closeModal() {
-        const modal = document.getElementById('paymentModal');
-        if (modal) {
-            modal.style.display = 'none';
-            
-            // Reset processing flag
-            this.isProcessing = false;
-            
-            console.log('Payment modal closed');
-        }
-    }
-    
-    // Select a pricing plan
+    /**
+     * Select a pricing plan
+     * @param {string} planType - The type of plan to select (monthly/annual)
+     * @param {HTMLElement} element - The plan element that was clicked
+     */
     static selectPlan(planType, element) {
         // Update UI
         const planOptions = document.querySelectorAll('.plan-option');
@@ -701,14 +376,14 @@ static redeemCode() {
         if (element) {
             element.classList.add('selected');
         } else {
-            // Find the plan element by data attribute and select it
+            // Find the element by data attribute
             const planElement = document.querySelector(`.plan-option[data-plan="${planType}"]`);
             if (planElement) {
                 planElement.classList.add('selected');
             }
         }
         
-        // Update selected plan data
+        // Update plan data
         if (planType === 'monthly') {
             this.selectedPlan = {
                 type: 'monthly',
@@ -727,13 +402,15 @@ static redeemCode() {
             };
         }
         
-        // Update payment summary
+        // Update summary
         this.updateSummary();
         
         console.log(`Selected plan: ${planType}`);
     }
     
-    // Toggle coupon input display
+    /**
+     * Toggle coupon input display
+     */
     static toggleCoupon() {
         const couponContainer = document.getElementById('couponContainer');
         const couponToggleText = document.getElementById('couponToggleText');
@@ -744,10 +421,10 @@ static redeemCode() {
             couponContainer.style.display = 'block';
             couponToggleText.textContent = 'Hide';
             
-            // Focus on the coupon input
-            const couponCode = document.getElementById('couponCode');
-            if (couponCode) {
-                setTimeout(() => couponCode.focus(), 100);
+            // Focus on coupon input
+            const couponInput = document.getElementById('couponCode');
+            if (couponInput) {
+                setTimeout(() => couponInput.focus(), 100);
             }
         } else {
             couponContainer.style.display = 'none';
@@ -755,7 +432,9 @@ static redeemCode() {
         }
     }
     
-    // Apply coupon code
+    /**
+     * Apply coupon code
+     */
     static applyCoupon() {
         const couponCode = document.getElementById('couponCode');
         if (!couponCode) return;
@@ -771,117 +450,221 @@ static redeemCode() {
             return;
         }
         
-        // Show loading state
+        // Show processing message
         if (couponMessage) {
             couponMessage.textContent = 'Validating coupon...';
             couponMessage.className = 'coupon-message';
         }
         
-        // Simulate coupon validation (replace with actual API call)
+        // Process coupon code
         setTimeout(() => {
-            // Example: WELCOME10 gives 10% off, STUDENT50 gives 50% off
-            let discountPercentage = 0;
-            let discountMessage = '';
+            // Valid coupon codes
+            const validCoupons = {
+                'WELCOME10': { discount: 10, message: '10% discount applied!' },
+                'STUDENT50': { discount: 50, message: '50% discount applied!' },
+                'SPRING2025': { discount: 15, message: '15% discount applied!' }
+            };
             
-            if (code.toUpperCase() === 'WELCOME10') {
-                discountPercentage = 10;
-                discountMessage = '10% discount applied!';
+            const couponInfo = validCoupons[code.toUpperCase()];
+            
+            if (couponInfo) {
+                // Apply discount
+                const discountPercentage = couponInfo.discount;
+                const discountAmount = Math.round(this.selectedPlan.price * (discountPercentage / 100));
+                
+                this.selectedPlan.discountAmount = discountAmount;
+                this.selectedPlan.totalPrice = this.selectedPlan.price - discountAmount;
+                
+                // Show success message
                 if (couponMessage) {
-                    couponMessage.className = 'coupon-message success';
-                }
-            } else if (code.toUpperCase() === 'STUDENT50') {
-                discountPercentage = 50;
-                discountMessage = '50% discount applied!';
-                if (couponMessage) {
+                    couponMessage.textContent = couponInfo.message;
                     couponMessage.className = 'coupon-message success';
                 }
             } else {
-                discountMessage = 'Invalid or expired coupon code';
+                // Invalid coupon
                 if (couponMessage) {
+                    couponMessage.textContent = 'Invalid or expired coupon code';
                     couponMessage.className = 'coupon-message error';
                 }
-            }
-            
-            if (couponMessage) {
-                couponMessage.textContent = discountMessage;
-            }
-            
-            if (discountPercentage > 0) {
-                // Calculate discount
-                const discount = Math.round(this.selectedPlan.price * (discountPercentage / 100));
-                this.selectedPlan.discountAmount = discount;
-                this.selectedPlan.totalPrice = this.selectedPlan.price - discount;
                 
-                // Update summary
-                this.updateSummary();
-                
-                // Show discount row
-                const discountRow = document.getElementById('discountRow');
-                if (discountRow) {
-                    discountRow.style.display = 'flex';
-                }
-            } else {
-                // Reset discount if invalid coupon
+                // Reset discount
                 this.selectedPlan.discountAmount = 0;
                 this.selectedPlan.totalPrice = this.selectedPlan.price;
-                
-                // Update summary
-                this.updateSummary();
-                
-                // Hide discount row
-                const discountRow = document.getElementById('discountRow');
-                if (discountRow) {
-                    discountRow.style.display = 'none';
-                }
             }
-        }, 1000);
+            
+            // Update summary
+            this.updateSummary();
+        }, 800);
     }
-}
-
-// Initialize with retry logic
-let initAttempts = 0;
-const maxInitAttempts = 5;
-
-function initializeWithRetry() {
-    const paymentModal = document.getElementById('paymentModal');
-    if (paymentModal) {
-        PaymentModal.init();
-        console.log('PaymentModal initialized successfully');
-    } else if (initAttempts < maxInitAttempts) {
-        initAttempts++;
-        console.log(`Payment modal not found, retry attempt ${initAttempts}/${maxInitAttempts}`);
-        
-        // On the last attempt, try to load the payment modal HTML
-        if (initAttempts === maxInitAttempts - 1) {
-            loadPaymentModalHTML();
-        } else {
-            setTimeout(initializeWithRetry, 1000);
+    
+    /**
+     * Process redemption code
+     */
+    static redeemCode() {
+        // Prevent multiple submissions
+        if (this.isProcessing) {
+            console.log('Redemption already in progress');
+            return;
         }
-    } else {
-        console.error('Failed to find payment modal after multiple attempts');
+        
+        this.isProcessing = true;
+        console.log('Processing redemption code');
+        
+        // Get code input
+        const redemptionCode = document.getElementById('redemptionCode');
+        if (!redemptionCode) {
+            this.isProcessing = false;
+            return;
+        }
+        
+        const code = redemptionCode.value.trim();
+        const errorElement = document.getElementById('redemptionCodeError');
+        
+        // Validate input
+        if (!code) {
+            if (errorElement) {
+                errorElement.textContent = 'Please enter a redemption code';
+            }
+            this.isProcessing = false;
+            return;
+        }
+        
+        // Clear error
+        if (errorElement) {
+            errorElement.textContent = '';
+        }
+        
+        // Show loading state
+        this.showLoading();
+        
+        // If PaymentAuth is available, use its verification method
+        if (window.PaymentAuth && typeof window.PaymentAuth.verifyRedemptionCode === 'function') {
+            window.PaymentAuth.verifyRedemptionCode(code)
+                .then(isValid => {
+                    if (isValid) {
+                        this.showSuccess();
+                        
+                        if (window.showToast) {
+                            window.showToast('Premium access activated successfully!', 'success');
+                        }
+                    } else {
+                        this.showRedemptionForm();
+                        if (errorElement) {
+                            errorElement.textContent = 'Invalid or expired redemption code';
+                        }
+                        
+                        if (window.showToast) {
+                            window.showToast('Invalid redemption code', 'error');
+                        }
+                    }
+                    this.isProcessing = false;
+                })
+                .catch(error => {
+                    console.error('Redemption error:', error);
+                    this.showError('Error processing redemption code. Please try again later.');
+                    this.isProcessing = false;
+                });
+            return;
+        }
+        
+        // Fallback implementation for testing
+        setTimeout(() => {
+            try {
+                // For testing purposes - valid codes
+                const validCodes = ['NEXTSTEP123', 'DEMO2024', 'WELCOME10'];
+                
+                if (validCodes.includes(code.toUpperCase())) {
+                    // Calculate expiry date (30 days from now)
+                    const now = new Date();
+                    const expiryDate = new Date(now);
+                    expiryDate.setDate(expiryDate.getDate() + 30);
+                    
+                    // Update localStorage
+                    localStorage.setItem('isPremium', 'true');
+                    localStorage.setItem('premiumExpiry', expiryDate.toISOString());
+                    
+                    // Show success message
+                    this.showSuccess();
+                    
+                    // Notify PaymentAuth if available
+                    if (window.PaymentAuth) {
+                        window.PaymentAuth.isPaid = true;
+                        window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
+                        setTimeout(() => {
+                            if (window.PaymentAuth.updateUI) {
+                                window.PaymentAuth.updateUI();
+                            }
+                        }, 500);
+                    }
+                    
+                    // Show toast notification
+                    if (window.showToast) {
+                        window.showToast('Premium access activated successfully!', 'success');
+                    }
+                } else {
+                    // Invalid code
+                    this.showRedemptionForm();
+                    if (errorElement) {
+                        errorElement.textContent = 'Invalid or expired redemption code';
+                    }
+                    
+                    if (window.showToast) {
+                        window.showToast('Invalid redemption code', 'error');
+                    }
+                }
+                
+                this.isProcessing = false;
+            } catch (error) {
+                console.error('Redemption error:', error);
+                this.showError('Error processing redemption code. Please try again later.');
+                this.isProcessing = false;
+            }
+        }, 1500);
+    }
+    
+    /**
+     * Initiate payment process
+     */
+    static initiatePayment() {
+        // Prevent multiple submissions
+        if (this.isProcessing) {
+            console.log('Payment already in progress');
+            return;
+        }
+        
+        this.isProcessing = true;
+        console.log('Initiating payment process');
+        
+        // Show loading state
+        this.showLoading();
+        
+        // For demo purposes, we'll just show an error message
+        // directing users to use redemption codes instead
+        setTimeout(() => {
+            this.showError('Payment system is currently in testing mode. Please use a redemption code instead.');
+            this.isProcessing = false;
+        }, 1500);
+        
+        // In a real implementation, this is where you would:
+        // 1. Create an order via a server API
+        // 2. Initialize Razorpay with the order details
+        // 3. Open the Razorpay payment window
     }
 }
 
-// Function to load the payment modal HTML
-function loadPaymentModalHTML() {
-    console.log('Attempting to load payment modal HTML');
-    PaymentModal.loadHTML();
-}
-
-// Initialize when DOM is fully loaded
+// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize with a delay to allow other scripts to run
-    setTimeout(initializeWithRetry, 1500);
+    setTimeout(() => PaymentModal.init(), 1000);
 });
 
-// Replace the DOMNodeInserted with MutationObserver (more modern approach)
+// Watch for dynamically added payment modal
 const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
         if (mutation.type === 'childList') {
             for (const node of mutation.addedNodes) {
                 if (node.id === 'paymentModal' || 
                     (node.querySelector && node.querySelector('#paymentModal'))) {
-                    console.log('Payment modal added to DOM via observer, initializing');
+                    console.log('Payment modal added to DOM, initializing');
                     setTimeout(() => PaymentModal.init(), 300);
                     return;
                 }
@@ -890,7 +673,7 @@ const observer = new MutationObserver((mutations) => {
     }
 });
 
-// Start observing the document with the configured parameters
+// Start observing the document body
 observer.observe(document.body, { childList: true, subtree: true });
 
 // Make PaymentModal available globally
@@ -900,8 +683,8 @@ console.log('PaymentModal added to global scope');
 // Add a fallback check on window load
 window.addEventListener('load', function() {
     setTimeout(function() {
-        if (!document.getElementById('paymentModal') && window.PaymentModal) {
-            console.log('Payment modal not found after window load, manually loading it');
+        if (!document.getElementById('paymentModal') && typeof PaymentModal === 'object') {
+            console.log('Payment modal not found after window load, attempting to load it');
             PaymentModal.loadHTML();
         }
     }, 3000);
