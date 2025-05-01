@@ -224,5 +224,39 @@
     <script type="module" src="js/contact.js"></script>
     <script type="module" src="js/payment-modal.js"></script>
     <script type="module" src="js/payment-auth.js"></script>
+
+    // Add this to your HTML file, right before the closing body tag:
+<script>
+    // Debug helper to check premium elements after page load
+    window.addEventListener('load', function() {
+        console.log('Page fully loaded, checking premium elements');
+        
+        // Check if PaymentAuth exists
+        if (typeof PaymentAuth === 'undefined') {
+            console.error('PaymentAuth is not defined! Script may not be loaded properly.');
+        } else {
+            console.log('PaymentAuth is defined');
+            
+            // Find premium elements
+            const premiumElements = document.querySelectorAll('[data-requires-premium="true"]');
+            console.log(`Found ${premiumElements.length} premium elements:`, premiumElements);
+            
+            // Try to manually set up click handlers for testing
+            premiumElements.forEach(el => {
+                console.log('Premium element:', el);
+                el.addEventListener('click', function(e) {
+                    console.log('Premium element clicked (debug handler)');
+                    if (typeof PaymentAuth !== 'undefined') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        PaymentAuth.showPaymentModal();
+                        return false;
+                    }
+                });
+            });
+        }
+    });
+</script>
+    
 </body>
 </html>
