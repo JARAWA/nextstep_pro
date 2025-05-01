@@ -4,7 +4,9 @@
 let auth, db, collection, query, where, getDocs, doc, updateDoc, increment, arrayUnion;
 
 // Using window.firebaseAuth from index.html
-auth = window.firebaseAuth || null;
+auth = { 
+  currentUser: window.Auth && window.Auth.user ? window.Auth.user : null 
+};
 console.log('Auth object available:', !!auth);
 
 // Define placeholder functions that will be replaced if Firestore is available
