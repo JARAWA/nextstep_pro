@@ -124,14 +124,19 @@ const PaymentModal = {
     },
     
     // Show payment form
-    showPaymentForm: function() {
-        this.hideAllForms();
-        const paymentForm = document.getElementById('paymentForm');
-        if (paymentForm) {
-            paymentForm.classList.add('active');
-            this.updateSummary();
-        }
-    },
+showPaymentForm: function() {
+    // Explicitly hide all other forms first
+    document.querySelectorAll('.payment-form').forEach(form => {
+        form.classList.remove('active');
+    });
+    
+    // Then show only the payment form
+    const paymentForm = document.getElementById('paymentForm');
+    if (paymentForm) {
+        paymentForm.classList.add('active');
+        this.updateSummary();
+    }
+},
     
     // Show redemption form
     showRedemptionForm: function() {
