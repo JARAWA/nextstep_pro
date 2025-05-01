@@ -11,67 +11,63 @@ const PaymentModal = {
     
     // Initialize the payment modal
     init: function() {
+        console.log('Initializing PaymentModal');
+        
         // Check if the modal exists in the DOM
-        const modalContainer = document.getElementById('paymentModal');
-        if (!modalContainer) {
+        const paymentModal = document.getElementById('paymentModal');
+        if (!paymentModal) {
             console.error('Payment modal not found in the DOM');
             return;
         }
         
-        // Add close button event listener
-        const closeButtons = document.querySelectorAll('#paymentModal .close');
+        // First, hide all forms
+        const forms = paymentModal.querySelectorAll('.payment-form');
+        forms.forEach(form => {
+            form.classList.remove('active');
+        });
+        
+        // Show only the payment form initially
+        const paymentForm = document.getElementById('paymentForm');
+        if (paymentForm) {
+            paymentForm.classList.add('active');
+        }
+        
+        // Add close button event listeners with direct binding
+        const closeButtons = paymentModal.querySelectorAll('.close');
         closeButtons.forEach(button => {
-            button.addEventListener('click', this.closeModal);
-        });
-
-            // Make sure payment button has its event listener
-    const paymentBtn = document.querySelector('.payment-btn');
-    if (paymentBtn) {
-        paymentBtn.removeEventListener('click', this.initiatePayment);
-        paymentBtn.addEventListener('click', () => this.initiatePayment());
-    }
-        
-        // Listen for clicks outside the modal
-        window.addEventListener('click', (event) => {
-            const modal = document.getElementById('paymentModal');
-            if (event.target === modal) {
-                this.closeModal();
-            }
+            button.addEventListener('click', () => this.closeModal());
         });
         
-        // Set up plan selection
-        const monthlyPlan = document.querySelector('.plan-option[data-plan="monthly"]');
-        const annualPlan = document.querySelector('.plan-option[data-plan="annual"]');
+        // Setup plan selection buttons
+        const planOptions = paymentModal.querySelectorAll('.plan-option');
+        planOptions.forEach(plan => {
+            plan.addEventListener('click', () => {
+                const planType = plan.getAttribute('data-plan');
+                this.selectPlan(planType, plan);
+            });
+        });
         
-        if (monthlyPlan) {
-            monthlyPlan.addEventListener('click', () => this.selectPlan('monthly', monthlyPlan));
-        }
-        
-        if (annualPlan) {
-            annualPlan.addEventListener('click', () => this.selectPlan('annual', annualPlan));
-        }
-        
-        // Set up coupon toggle
-        const couponToggle = document.getElementById('couponToggleText');
+        // Setup coupon toggle
+        const couponToggle = paymentModal.querySelector('.coupon-toggle');
         if (couponToggle) {
-            const couponToggleContainer = couponToggle.parentElement;
-            couponToggleContainer.addEventListener('click', this.toggleCoupon);
+            couponToggle.addEventListener('click', () => this.toggleCoupon());
         }
         
-        // Set up coupon apply button
-        const applyButton = document.querySelector('.coupon-btn');
+        // Setup coupon apply button
+        const applyButton = paymentModal.querySelector('.coupon-btn');
         if (applyButton) {
-            applyButton.addEventListener('click', this.applyCoupon.bind(this));
+            applyButton.addEventListener('click', () => this.applyCoupon());
         }
         
-        // Initialize payment button
-        const paymentButton = document.querySelector('.payment-btn');
+        // Setup payment button
+        const paymentButton = paymentModal.querySelector('.payment-btn');
         if (paymentButton) {
-            paymentButton.addEventListener('click', this.initiatePayment.bind(this));
+            paymentButton.removeEventListener('click', this.initiatePayment);
+            paymentButton.addEventListener('click', () => this.initiatePayment());
         }
         
-        // Initialize redemption link
-        const redemptionLink = document.querySelector('.redemption-option a');
+        // Setup redemption link
+        const redemptionLink = paymentModal.querySelector('.redemption-option a');
         if (redemptionLink) {
             redemptionLink.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -79,8 +75,8 @@ const PaymentModal = {
             });
         }
         
-        // Initialize back to payment link
-        const backToPaymentLink = document.querySelector('.redemption-footer a');
+        // Setup back to payment link
+        const backToPaymentLink = paymentModal.querySelector('.redemption-footer a');
         if (backToPaymentLink) {
             backToPaymentLink.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -88,34 +84,51 @@ const PaymentModal = {
             });
         }
         
-        // Initialize redemption button
-        const redeemButton = document.querySelector('.redemption-btn');
+        // Setup redemption button
+        const redeemButton = paymentModal.querySelector('.redemption-btn');
         if (redeemButton) {
-            redeemButton.addEventListener('click', this.redeemCode.bind(this));
+            redeemButton.addEventListener('click', () => this.redeemCode());
         }
         
-        // Initialize success button
-        const successButton = document.querySelector('.success-btn');
+        // Setup success button
+        const successButton = paymentModal.querySelector('.success-btn');
         if (successButton) {
-            successButton.addEventListener('click', this.closeModal);
+            successButton.addEventListener('click', () => this.closeModal());
         }
         
-        // Initialize retry button
-        const retryButton = document.querySelector('.retry-btn');
+        // Setup retry button
+        const retryButton = paymentModal.querySelector('.retry-btn');
         if (retryButton) {
-            retryButton.addEventListener('click', this.showPaymentForm.bind(this));
+            retryButton.addEventListener('click', () => this.showPaymentForm());
         }
         
-        console.log('Payment modal initialized');
+        console.log('Payment modal initialization completed');
     },
     
     // Open the payment modal
     openModal: function() {
+        console.log('Opening payment modal');
         const modal = document.getElementById('paymentModal');
         if (modal) {
+            // Reset any previously active forms
+            const allForms = modal.querySelectorAll('.payment-form');
+            allForms.forEach(form => {
+                form.classList.remove('active');
+            });
+            
+            // Show the main payment form
+            const paymentForm = document.getElementById('paymentForm');
+            if (paymentForm) {
+                paymentForm.classList.add('active');
+            }
+            
+            // Display the modal
             modal.style.display = 'block';
-            this.showPaymentForm();
-            console.log('Payment modal opened');
+            
+            // Update the payment summary
+            this.updateSummary();
+            
+            console.log('Payment modal opened successfully');
         } else {
             console.error('Payment modal not found in the DOM');
         }
@@ -131,23 +144,33 @@ const PaymentModal = {
     },
     
     // Show payment form
-showPaymentForm: function() {
-    // Explicitly hide all other forms first
-    document.querySelectorAll('.payment-form').forEach(form => {
-        form.classList.remove('active');
-    });
-    
-    // Then show only the payment form
-    const paymentForm = document.getElementById('paymentForm');
-    if (paymentForm) {
-        paymentForm.classList.add('active');
-        this.updateSummary();
-    }
-},
+    showPaymentForm: function() {
+        const paymentModal = document.getElementById('paymentModal');
+        if (!paymentModal) return;
+        
+        // Hide all forms first
+        const allForms = paymentModal.querySelectorAll('.payment-form');
+        allForms.forEach(form => form.classList.remove('active'));
+        
+        // Then show the payment form
+        const paymentForm = document.getElementById('paymentForm');
+        if (paymentForm) {
+            paymentForm.classList.add('active');
+            // Update the payment summary
+            this.updateSummary();
+        }
+    },
     
     // Show redemption form
     showRedemptionForm: function() {
-        this.hideAllForms();
+        const paymentModal = document.getElementById('paymentModal');
+        if (!paymentModal) return;
+        
+        // Hide all forms first
+        const allForms = paymentModal.querySelectorAll('.payment-form');
+        allForms.forEach(form => form.classList.remove('active'));
+        
+        // Then show the redemption form
         const redemptionForm = document.getElementById('redemptionForm');
         if (redemptionForm) {
             redemptionForm.classList.add('active');
@@ -156,7 +179,14 @@ showPaymentForm: function() {
     
     // Show loading state
     showLoading: function() {
-        this.hideAllForms();
+        const paymentModal = document.getElementById('paymentModal');
+        if (!paymentModal) return;
+        
+        // Hide all forms first
+        const allForms = paymentModal.querySelectorAll('.payment-form');
+        allForms.forEach(form => form.classList.remove('active'));
+        
+        // Then show the loading form
         const loadingForm = document.getElementById('paymentLoading');
         if (loadingForm) {
             loadingForm.classList.add('active');
@@ -165,7 +195,14 @@ showPaymentForm: function() {
     
     // Show success message
     showSuccess: function() {
-        this.hideAllForms();
+        const paymentModal = document.getElementById('paymentModal');
+        if (!paymentModal) return;
+        
+        // Hide all forms first
+        const allForms = paymentModal.querySelectorAll('.payment-form');
+        allForms.forEach(form => form.classList.remove('active'));
+        
+        // Then show the success form
         const successForm = document.getElementById('paymentSuccess');
         if (successForm) {
             successForm.classList.add('active');
@@ -174,13 +211,22 @@ showPaymentForm: function() {
     
     // Show error message
     showError: function(message) {
-        this.hideAllForms();
+        const paymentModal = document.getElementById('paymentModal');
+        if (!paymentModal) return;
+        
+        // Hide all forms first
+        const allForms = paymentModal.querySelectorAll('.payment-form');
+        allForms.forEach(form => form.classList.remove('active'));
+        
+        // Update the error message if provided
         if (message) {
             const errorMessage = document.getElementById('errorMessage');
             if (errorMessage) {
                 errorMessage.textContent = message;
             }
         }
+        
+        // Then show the error form
         const errorForm = document.getElementById('paymentError');
         if (errorForm) {
             errorForm.classList.add('active');
