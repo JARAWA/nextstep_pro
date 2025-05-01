@@ -474,7 +474,7 @@ static async redeemCode() {
     this.showLoading();
     
     // Check Firebase availability
-    if (!this.firebaseAvailable) {
+    if (!this.firebaseAvailable || !window.firebase || !window.firebase.firestore) {
         console.warn('Firebase is not available - using localStorage fallback');
         
         // Fallback to localStorage-only mode for testing
@@ -535,9 +535,11 @@ static async redeemCode() {
         
         const userId = currentUser.uid;
         
-        // Using Firebase v8 style API
-        // Query for verification code
-        db.collection('verificationCodes')
+        // Using window.firebase directly to avoid function wrapping issues
+        const firestore = window.firebase.firestore();
+        
+        // Query for verification code (direct API access)
+        firestore.collection('verificationCodes')
           .where('code', '==', code)
           .where('isActive', '==', true)
           .limit(1)
@@ -598,7 +600,7 @@ static async redeemCode() {
               expiryDate.setDate(expiryDate.getDate() + (codeData.expiryDays || 30)); // Default to 30 if not specified
               
               // Update the code usage in Firestore
-              const codeRef = db.collection('verificationCodes').doc(codeDoc.id);
+              const codeRef = firestore.collection('verificationCodes').doc(codeDoc.id);
               
               // Try to update the code document
               codeRef.update({
@@ -607,7 +609,7 @@ static async redeemCode() {
               })
               .then(() => {
                   // Update user's premium status
-                  db.collection('users').doc(userId).update({
+                  firestore.collection('users').doc(userId).update({
                       isPaid: true,
                       paymentExpiry: expiryDate.toISOString()
                   })
