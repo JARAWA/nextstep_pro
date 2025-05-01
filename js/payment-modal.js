@@ -1,10 +1,9 @@
-// payment-modal.js - Updated for Firebase v9 compatibility
+// payment-modal.js - Non-module version with improved initialization
 
 // Define safer references to Firebase objects
-// First, check if we can access Firebase
 let auth, db, collection, query, where, getDocs, doc, updateDoc, increment, arrayUnion;
 
-// Using window.firebaseAuth from your index.html
+// Using window.firebaseAuth from index.html
 auth = window.firebaseAuth || null;
 console.log('Auth object available:', !!auth);
 
@@ -15,7 +14,7 @@ collection = query = where = getDocs = doc = updateDoc = increment = arrayUnion 
     return null;
 };
 
-// We'll check Firebase availability in the init method instead of trying to access it immediately
+// We'll check Firebase availability in the init method
 console.log('PaymentModal script loaded - will check Firebase availability during initialization');
 
 // PaymentModal class - handles payment modal functionality
@@ -117,7 +116,7 @@ class PaymentModal {
         }
         
         // Setup redemption link
-        const redemptionLink = paymentModal.querySelector('.redemption-link');
+        const redemptionLink = paymentModal.querySelector('.redemption-option a');
         if (redemptionLink) {
             redemptionLink.removeAttribute('onclick');
             redemptionLink.addEventListener('click', (e) => {
@@ -128,7 +127,7 @@ class PaymentModal {
         }
         
         // Setup back to payment link
-        const backToPaymentLink = paymentModal.querySelector('.back-to-payment');
+        const backToPaymentLink = paymentModal.querySelector('.redemption-footer a');
         if (backToPaymentLink) {
             backToPaymentLink.removeAttribute('onclick');
             backToPaymentLink.addEventListener('click', (e) => {
@@ -163,56 +162,108 @@ class PaymentModal {
         console.log('Payment modal initialization completed');
     }
     
+    // Load payment modal HTML
+    static loadHTML() {
+        console.log('Attempting to load payment modal HTML');
+        const modalContainer = document.getElementById('modal-container');
+        
+        if (!modalContainer) {
+            console.error('Modal container not found!');
+            return;
+        }
+        
+        // Check if payment modal already exists
+        if (document.getElementById('paymentModal')) {
+            console.log('Payment modal already exists, initializing');
+            this.init();
+            return;
+        }
+        
+        // Fetch the payment modal HTML and add it to the page
+        fetch('components/payment-modal.html')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(html => {
+                // Create a temporary div to hold the HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                
+                // Append the first child (the payment modal) to the modal container
+                // Make sure we only append it if it doesn't exist yet
+                if (!document.getElementById('paymentModal')) {
+                    modalContainer.appendChild(tempDiv.firstChild);
+                    console.log('Payment modal HTML loaded successfully');
+                    
+                    // Now initialize the payment modal
+                    setTimeout(() => this.init(), 300);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading payment modal HTML:', error);
+            });
+    }
+    
     // Check Firebase availability and adjust UI accordingly
-// Check Firebase availability and adjust UI accordingly
-static checkFirebaseStatus() {
-    try {
-        // Try to access Firebase from window
-        if (window.firebase && window.firebase.firestore) {
-            console.log('Firebase detected via window.firebase');
-            // Initialize Firestore variables
-            db = window.firebase.firestore();
-            collection = window.firebase.firestore.collection;
-            query = window.firebase.firestore.query;
-            where = window.firebase.firestore.where;
-            getDocs = window.firebase.firestore.getDocs;
-            doc = window.firebase.firestore.doc;
-            updateDoc = window.firebase.firestore.updateDoc;
-            increment = window.firebase.firestore.FieldValue?.increment;
-            arrayUnion = window.firebase.firestore.FieldValue?.arrayUnion;
+    static checkFirebaseStatus() {
+        try {
+            // Try to access Firebase from window
+            if (window.firebase && window.firebase.firestore) {
+                console.log('Firebase detected via window.firebase');
+                // Initialize Firestore variables
+                db = window.firebase.firestore();
+                
+                // Get Firestore functions
+                if (window.firebase.firestore) {
+                    collection = window.firebase.firestore.collection || db.collection;
+                    query = window.firebase.firestore.query || db.query;
+                    where = window.firebase.firestore.where || db.where;
+                    getDocs = window.firebase.firestore.getDocs || db.getDocs;
+                    doc = window.firebase.firestore.doc || db.doc;
+                    updateDoc = window.firebase.firestore.updateDoc || db.updateDoc;
+                    
+                    // Access FieldValue if available
+                    if (window.firebase.firestore.FieldValue) {
+                        increment = window.firebase.firestore.FieldValue.increment;
+                        arrayUnion = window.firebase.firestore.FieldValue.arrayUnion;
+                    }
+                }
+                
+                this.firebaseAvailable = true;
+                console.log('Firebase is available. Full payment functionality enabled.');
+                this.updateUIForFirebaseStatus(true);
+                return;
+            }
+            
+            // Check if auth is available
+            if (!auth) {
+                console.warn('Firebase auth not detected. Payment functionality will be limited.');
+                this.firebaseAvailable = false;
+                this.updateUIForFirebaseStatus(false);
+                return;
+            }
+            
+            // Additional check to make sure Firebase auth is properly initialized
+            if (typeof auth.onAuthStateChanged !== 'function') {
+                console.warn('Firebase auth not properly initialized');
+                this.firebaseAvailable = false;
+                this.updateUIForFirebaseStatus(false);
+                return;
+            }
             
             this.firebaseAvailable = true;
-            console.log('Firebase is available. Full payment functionality enabled.');
+            console.log('Firebase auth is available, but Firestore may not be fully initialized.');
             this.updateUIForFirebaseStatus(true);
-            return;
-        }
-        
-        // Check if auth is available
-        if (!auth) {
-            console.warn('Firebase auth not detected. Payment functionality will be limited.');
+            
+        } catch (error) {
+            console.error('Error checking Firebase status:', error);
             this.firebaseAvailable = false;
             this.updateUIForFirebaseStatus(false);
-            return;
         }
-        
-        // Additional check to make sure Firebase auth is properly initialized
-        if (typeof auth.onAuthStateChanged !== 'function') {
-            console.warn('Firebase auth not properly initialized');
-            this.firebaseAvailable = false;
-            this.updateUIForFirebaseStatus(false);
-            return;
-        }
-        
-        this.firebaseAvailable = true;
-        console.log('Firebase auth is available, but Firestore may not be fully initialized.');
-        this.updateUIForFirebaseStatus(true);
-        
-    } catch (error) {
-        console.error('Error checking Firebase status:', error);
-        this.firebaseAvailable = false;
-        this.updateUIForFirebaseStatus(false);
     }
-}
     
     // Update UI based on Firebase availability
     static updateUIForFirebaseStatus(isAvailable) {
@@ -295,36 +346,58 @@ static checkFirebaseStatus() {
     // Open the payment modal
     static openModal() {
         console.log('Opening payment modal');
-        const modal = document.getElementById('paymentModal');
-        if (modal) {
-            // Reset processing flag
-            this.isProcessing = false;
+        
+        // First, make sure the modal exists
+        let modal = document.getElementById('paymentModal');
+        
+        // If it doesn't exist, load it
+        if (!modal) {
+            console.log('Payment modal not found, trying to load it');
+            this.loadHTML();
             
-            // Reset any previously active forms
-            const allForms = modal.querySelectorAll('.payment-form');
-            allForms.forEach(form => {
-                form.classList.remove('active');
-            });
-            
-            // Show the main payment form
-            const paymentForm = document.getElementById('paymentForm');
-            if (paymentForm) {
-                paymentForm.classList.add('active');
-            }
-            
-            // Display the modal
-            modal.style.display = 'block';
-            
-            // Update the payment summary
-            this.updateSummary();
-            
-            // Check Firebase status again when opening the modal
-            this.checkFirebaseStatus();
-            
-            console.log('Payment modal opened successfully');
-        } else {
-            console.error('Payment modal not found in the DOM');
+            // Wait a bit for the modal to load, then try again
+            setTimeout(() => {
+                modal = document.getElementById('paymentModal');
+                if (modal) {
+                    this.finishOpeningModal(modal);
+                } else {
+                    console.error('Could not load payment modal');
+                }
+            }, 1000);
+            return;
         }
+        
+        // If modal exists, open it
+        this.finishOpeningModal(modal);
+    }
+    
+    // Helper method to finish opening the modal
+    static finishOpeningModal(modal) {
+        // Reset processing flag
+        this.isProcessing = false;
+        
+        // Reset any previously active forms
+        const allForms = modal.querySelectorAll('.payment-form');
+        allForms.forEach(form => {
+            form.classList.remove('active');
+        });
+        
+        // Show the main payment form
+        const paymentForm = document.getElementById('paymentForm');
+        if (paymentForm) {
+            paymentForm.classList.add('active');
+        }
+        
+        // Display the modal
+        modal.style.display = 'block';
+        
+        // Update the payment summary
+        this.updateSummary();
+        
+        // Check Firebase status again when opening the modal
+        this.checkFirebaseStatus();
+        
+        console.log('Payment modal opened successfully');
     }
     
     // Process redemption code - updated for Firebase v9 with improved error handling
@@ -811,7 +884,7 @@ static checkFirebaseStatus() {
             }
         }
         
-        // Then show the error form
+// Then show the error form
         const errorForm = document.getElementById('paymentError');
         if (errorForm) {
             errorForm.classList.add('active');
@@ -1013,33 +1086,71 @@ static checkFirebaseStatus() {
     }
 }
 
+// Initialize with retry logic
+let initAttempts = 0;
+const maxInitAttempts = 5;
+
+function initializeWithRetry() {
+    const paymentModal = document.getElementById('paymentModal');
+    if (paymentModal) {
+        PaymentModal.init();
+        console.log('PaymentModal initialized successfully');
+    } else if (initAttempts < maxInitAttempts) {
+        initAttempts++;
+        console.log(`Payment modal not found, retry attempt ${initAttempts}/${maxInitAttempts}`);
+        
+        // On the last attempt, try to load the payment modal HTML
+        if (initAttempts === maxInitAttempts - 1) {
+            loadPaymentModalHTML();
+        } else {
+            setTimeout(initializeWithRetry, 1000);
+        }
+    } else {
+        console.error('Failed to find payment modal after multiple attempts');
+    }
+}
+
+// Function to load the payment modal HTML
+function loadPaymentModalHTML() {
+    console.log('Attempting to load payment modal HTML');
+    PaymentModal.loadHTML();
+}
+
 // Initialize when DOM is fully loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize directly with a small delay to ensure DOM is ready
-    setTimeout(() => {
-        if (document.getElementById('paymentModal')) {
-            PaymentModal.init();
-            console.log('PaymentModal initialized from DOMContentLoaded event');
-        }
-    }, 1000);
+    // Initialize with a delay to allow other scripts to run
+    setTimeout(initializeWithRetry, 1500);
 });
 
-// Handle page re-renders for SPA (Single Page Applications)
-// This ensures the modal is initialized even if the DOM changes after initial load
-document.addEventListener('DOMNodeInserted', function(e) {
-    // Check if the inserted node might contain our modal
-    if (e.target && e.target.id === 'paymentModal' || 
-        (e.target.querySelector && e.target.querySelector('#paymentModal'))) {
-        // Reinitialize with a small delay
-        setTimeout(() => {
-            if (document.getElementById('paymentModal')) {
-                PaymentModal.init();
-                console.log('PaymentModal reinitialized after DOM change');
+// Replace the DOMNodeInserted with MutationObserver (more modern approach)
+const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+        if (mutation.type === 'childList') {
+            for (const node of mutation.addedNodes) {
+                if (node.id === 'paymentModal' || 
+                    (node.querySelector && node.querySelector('#paymentModal'))) {
+                    console.log('Payment modal added to DOM via observer, initializing');
+                    setTimeout(() => PaymentModal.init(), 300);
+                    return;
+                }
             }
-        }, 500);
+        }
     }
 });
+
+// Start observing the document with the configured parameters
+observer.observe(document.body, { childList: true, subtree: true });
 
 // Make PaymentModal available globally
 window.PaymentModal = PaymentModal;
 console.log('PaymentModal added to global scope');
+
+// Add a fallback check on window load
+window.addEventListener('load', function() {
+    setTimeout(function() {
+        if (!document.getElementById('paymentModal') && window.PaymentModal) {
+            console.log('Payment modal not found after window load, manually loading it');
+            PaymentModal.loadHTML();
+        }
+    }, 3000);
+});
