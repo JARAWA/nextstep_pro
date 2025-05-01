@@ -64,29 +64,29 @@ class PaymentAuth {
         }
     }
     
-    /**
-     * Load payment modal HTML
-     */
-    static loadPaymentModal() {
-        fetch('components/payment-modal.html')
-            .then(response => response.text())
-            .then(html => {
-                // Add the payment modal to the document
-                const modalContainer = document.createElement('div');
-                modalContainer.innerHTML = html;
-                document.body.appendChild(modalContainer.firstChild);
-                
-                console.log('Payment modal HTML loaded successfully');
-                
-                // Initialize PaymentModal if available
-                if (window.PaymentModal && typeof window.PaymentModal.init === 'function') {
-                    window.PaymentModal.init();
-                }
-            })
-            .catch(error => {
-                console.error('Error loading payment modal HTML:', error);
-            });
-    }
+/**
+ * Load payment modal HTML
+ */
+static loadPaymentModal() {
+    fetch('components/payment-modal.html')
+        .then(response => response.text())
+        .then(html => {
+            // Add the payment modal to the document
+            const modalContainer = document.createElement('div');
+            modalContainer.innerHTML = html;
+            document.body.appendChild(modalContainer.firstChild);
+            
+            console.log('Payment modal HTML loaded successfully');
+            
+            // Initialize PaymentModal if available
+            if (window.PaymentModal && typeof window.PaymentModal.init === 'function') {
+                window.PaymentModal.init();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading payment modal HTML:', error);
+        });
+}
     
     /**
      * Observe DOM changes to handle dynamically added premium elements
