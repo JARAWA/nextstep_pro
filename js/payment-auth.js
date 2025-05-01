@@ -1,8 +1,11 @@
 /**
  * payment-auth.js - Client-side implementation of payment and premium features
  * 
- * This file handles payment integration with Razorpay and
- * verification code validation for premium features
+ * This module handles:
+ * 1. Premium feature access control
+ * 2. Payment verification 
+ * 3. Redemption code verification
+ * 4. UI updates based on payment status
  */
 
 // PaymentAuth class - global handler for premium features
@@ -12,7 +15,7 @@ class PaymentAuth {
     static paymentExpiry = null;
     static user = null;
     static initialized = false;
-    static _handlers = new WeakMap();
+    static _handlers = new Map();
     
     /**
      * Initialize the payment authentication service
@@ -28,7 +31,7 @@ class PaymentAuth {
         this.initialized = true;
         
         try {
-            // Load the dedicated payment modal
+            // Load the payment modal component
             await this.loadPaymentModal();
             
             // Check if user is already logged in
@@ -73,19 +76,31 @@ class PaymentAuth {
      */
     static loadPaymentModal() {
         return new Promise((resolve, reject) => {
+            // Check if modal already exists
+            if (document.getElementById('paymentModal')) {
+                console.log('Payment modal already exists, skipping load');
+                resolve();
+                return;
+            }
+            
             fetch('components/payment-modal.html')
-                .then(response => response.text())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to load payment modal: ${response.status} ${response.statusText}`);
+                    }
+                    return response.text();
+                })
                 .then(html => {
                     // Add the payment modal to the document
-                    const modalContainer = document.createElement('div');
-                    modalContainer.innerHTML = html;
-                    document.body.appendChild(modalContainer.firstChild);
+                    const tempContainer = document.createElement('div');
+                    tempContainer.innerHTML = html;
+                    document.body.appendChild(tempContainer.firstElementChild);
                     
                     console.log('Payment modal HTML loaded successfully');
                     
                     // Initialize PaymentModal if available
                     if (window.PaymentModal && typeof window.PaymentModal.init === 'function') {
-                        window.PaymentModal.init();
+                        setTimeout(() => window.PaymentModal.init(), 100);
                     }
                     resolve();
                 })
@@ -165,7 +180,7 @@ class PaymentAuth {
                             this.isPaid = false;
                             
                             // Update user profile to reflect expired status
-                            if (window.UserService.updateUserProfile) {
+                            if (window.UserService && window.UserService.updateUserProfile) {
                                 await window.UserService.updateUserProfile(this.user, {
                                     isPaid: false
                                 });
@@ -220,15 +235,13 @@ class PaymentAuth {
         
         // Add handlers to elements with data-requires-premium="true"
         document.querySelectorAll('[data-requires-premium="true"]').forEach(element => {
-            // Get existing handler if any
-            const existingHandler = this._handlers.get(element);
-            if (existingHandler) {
-                // Remove existing handler to prevent duplicates
-                element.removeEventListener('click', existingHandler);
+            // Skip elements that already have handlers attached
+            if (this._handlers.has(element)) {
+                return;
             }
             
-            // Create a new bound handler
-            const newHandler = (e) => {
+            // Create a new handler bound to this element
+            const handler = (e) => {
                 if (!this.isPaid) {
                     // Stop all default actions
                     e.preventDefault();
@@ -241,10 +254,9 @@ class PaymentAuth {
                         if (window.Modal && typeof window.Modal.show === 'function') {
                             window.Modal.show();
                         } else {
-                            console.log('Login required');
                             alert('Please login to access premium features');
                         }
-                        return;
+                        return false;
                     }
                     
                     // Show the premium feature notification
@@ -264,46 +276,22 @@ class PaymentAuth {
             };
             
             // Store the handler reference for future removal
-            this._handlers.set(element, newHandler);
+            this._handlers.set(element, handler);
             
             // Add premium-disabled class initially if not paid
-            if (!this.isPaid) {
-                element.classList.add('premium-disabled');
-                
-                // For anchor tags, store href in data-href and remove href
-                if (element.tagName === 'A' && element.hasAttribute('href')) {
-                    // Only store if we haven't already
-                    if (!element.hasAttribute('data-href')) {
-                        element.setAttribute('data-href', element.getAttribute('href'));
-                    }
-                    element.removeAttribute('href');
-                }
-                
-                // For buttons, don't disable as we want the click handler to run
-                // but add visual cues via the premium-disabled class
-            } else {
-                element.classList.remove('premium-disabled');
-                
-                // For anchor tags, restore href from data-href
-                if (element.tagName === 'A' && element.hasAttribute('data-href')) {
-                    element.href = element.getAttribute('data-href');
-                }
-            }
+            this.updateElementStatus(element);
             
-            // Add the new handler
-            element.addEventListener('click', newHandler);
+            // Add the click handler
+            element.addEventListener('click', handler);
         });
         
         // Add show premium modal handler to all premium buttons
-        const premiumButtons = document.querySelectorAll('.premium-btn');
-        premiumButtons.forEach(button => {
-            // Remove existing handler to prevent duplicates
-            button.removeEventListener('click', () => this.showPaymentModal());
-            
-            // Add new handler
-            button.addEventListener('click', () => {
-                this.showPaymentModal();
-            });
+        document.querySelectorAll('.premium-btn').forEach(button => {
+            if (!this._handlers.has(button)) {
+                const handler = () => this.showPaymentModal();
+                this._handlers.set(button, handler);
+                button.addEventListener('click', handler);
+            }
         });
         
         // Add CSS for premium-disabled elements
@@ -311,11 +299,36 @@ class PaymentAuth {
     }
     
     /**
-     * Handler for clicks on premium elements (this is now handled directly in setupPremiumFeatures)
+     * Update individual element status based on payment state
+     * @param {HTMLElement} element - Element to update
      */
-    static premiumClickHandler(e) {
-        // This is now handled in setupPremiumFeatures with properly bound handlers
-        console.log('Legacy premiumClickHandler called - should not be called directly');
+    static updateElementStatus(element) {
+        if (!element) return;
+        
+        if (this.isPaid) {
+            element.classList.remove('premium-disabled');
+            
+            // For anchor tags, restore href from data-href
+            if (element.tagName === 'A' && element.hasAttribute('data-href')) {
+                element.href = element.getAttribute('data-href');
+            }
+            
+            // For buttons, make sure they're enabled
+            if (element.tagName === 'BUTTON') {
+                element.disabled = false;
+            }
+        } else {
+            element.classList.add('premium-disabled');
+            
+            // For anchor tags, store href in data-href and remove href
+            if (element.tagName === 'A' && element.hasAttribute('href')) {
+                // Only store if we haven't already
+                if (!element.hasAttribute('data-href')) {
+                    element.setAttribute('data-href', element.getAttribute('href'));
+                }
+                element.removeAttribute('href');
+            }
+        }
     }
     
     /**
@@ -417,9 +430,10 @@ class PaymentAuth {
                 opacity: 1;
             }
             
-            /* Style for premium badge */
+            /* Premium badge */
             .premium-badge {
-                display: inline-block;
+                display: inline-flex;
+                align-items: center;
                 background: linear-gradient(45deg, #FFD700, #FFA500);
                 color: #000;
                 padding: 3px 8px;
@@ -428,10 +442,30 @@ class PaymentAuth {
                 font-weight: bold;
             }
             
-            /* Premium notification styling */
+            /* Premium notification */
             .premium-notification {
                 pointer-events: none;
                 font-family: 'Poppins', sans-serif;
+            }
+            
+            /* Upgrade link */
+            .upgrade-link {
+                display: inline-flex;
+                align-items: center;
+                color: #FFD700;
+                padding: 8px 16px;
+                font-weight: bold;
+                text-decoration: none;
+                transition: all 0.3s ease;
+            }
+            
+            .upgrade-link:hover {
+                background-color: rgba(255, 215, 0, 0.1);
+                text-decoration: none;
+            }
+            
+            .upgrade-link i {
+                margin-right: 6px;
             }
         `;
         
@@ -446,32 +480,7 @@ class PaymentAuth {
         
         // Update premium elements visibility and functionality
         document.querySelectorAll('[data-requires-premium="true"]').forEach(element => {
-            if (this.isPaid) {
-                element.classList.remove('premium-disabled');
-                
-                // If it's an anchor tag with data-href, restore the href
-                if (element.tagName === 'A' && element.hasAttribute('data-href')) {
-                    element.href = element.getAttribute('data-href');
-                }
-                
-                // For buttons, enable them
-                if (element.tagName === 'BUTTON') {
-                    element.disabled = false;
-                }
-            } else {
-                element.classList.add('premium-disabled');
-                
-                // For anchor tags, remove the href to prevent navigation
-                if (element.tagName === 'A' && element.hasAttribute('href')) {
-                    if (!element.hasAttribute('data-href')) {
-                        element.setAttribute('data-href', element.getAttribute('href'));
-                    }
-                    element.removeAttribute('href');
-                }
-                
-                // For buttons, don't disable as we want the click handler to run
-                // but we can add visual cues via the premium-disabled class
-            }
+            this.updateElementStatus(element);
         });
         
         // Update payment status indicator if it exists
@@ -548,203 +557,33 @@ class PaymentAuth {
             }
         }
         
-        // Look for the dedicated payment modal first
+        // Check if dedicated payment modal is available
+        if (window.PaymentModal && typeof window.PaymentModal.openModal === 'function') {
+            console.log('Using dedicated PaymentModal.openModal()');
+            window.PaymentModal.openModal();
+            return;
+        }
+        
+        // Otherwise look for the modal directly
         let paymentModal = document.getElementById('paymentModal');
         
         if (paymentModal) {
-            // If PaymentModal handler is available, use it instead
-            if (window.PaymentModal && typeof window.PaymentModal.openModal === 'function') {
-                console.log('Using dedicated PaymentModal.openModal()');
-                window.PaymentModal.openModal();
-                return;
-            }
-            
-            // Otherwise, just show the modal directly
+            // Show the modal directly
             paymentModal.style.display = 'block';
-            console.log('Showing dedicated payment modal directly');
+            console.log('Showing payment modal directly');
             return;
         }
         
-        // Fall back to the dynamic creation if needed
-        paymentModal = document.createElement('div');
-        paymentModal.id = 'paymentModal';
-        paymentModal.className = 'modal payment-modal';
-        
-        paymentModal.innerHTML = `
-            <div class="modal-content payment-modal-content">
-                <span class="close">&times;</span>
-                <h2><i class="fas fa-crown"></i> Upgrade to Premium</h2>
-                <p>Unlock all premium features and get the most out of our college preference tools.</p>
-                
-                <div class="payment-options">
-                    <div class="payment-option">
-                        <h3>Pay with Razorpay</h3>
-                        <p>Secure online payment</p>
-                        <button id="razorpay-button" class="btn payment-btn">
-                            <i class="fas fa-credit-card"></i> Pay ₹499
-                        </button>
-                    </div>
-                    
-                    <div class="payment-option">
-                        <h3>Have a Verification Code?</h3>
-                        <p>Enter your code to get premium access</p>
-                        <div class="verification-form">
-                            <input type="text" id="verification-code" placeholder="Enter code" maxlength="12">
-                            <button id="verify-code-button" class="btn verify-btn">
-                                <i class="fas fa-check"></i> Verify
-                            </button>
-                        </div>
-                        <div id="verification-error" class="error-message"></div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(paymentModal);
-        
-        // Add event listeners
-        const closeBtn = paymentModal.querySelector('.close');
-        closeBtn.addEventListener('click', () => {
-            paymentModal.style.display = 'none';
-        });
-        
-        // Close when clicking outside
-        window.addEventListener('click', (event) => {
-            if (event.target === paymentModal) {
-                paymentModal.style.display = 'none';
-            }
-        });
-        
-        // Razorpay button
-        const razorpayBtn = document.getElementById('razorpay-button');
-        razorpayBtn.addEventListener('click', () => {
-            this.initializeRazorpayPayment();
-        });
-        
-        // Verification button
-        const verifyBtn = document.getElementById('verify-code-button');
-        verifyBtn.addEventListener('click', () => {
-            const codeInput = document.getElementById('verification-code');
-            const code = codeInput.value.trim();
-            
-            if (code) {
-                this.verifyCode(code);
-            } else {
-                this.showVerificationError('Please enter a verification code');
-            }
-        });
-        
-        // Show the modal
-        paymentModal.style.display = 'block';
-        console.log('Created and showed dynamic payment modal');
-    }
-    
-    /**
-     * Initialize Razorpay payment
-     */
-    static async initializeRazorpayPayment() {
-        if (!window.Auth || !window.Auth.isLoggedIn) {
-            if (window.showToast) {
-                window.showToast('Please log in first', 'warning');
-            }
-            return;
-        }
-        
-        try {
-            // Show loading state
-            const button = document.getElementById('razorpay-button');
-            if (button) {
-                button.disabled = true;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initializing...';
-            }
-            
-            // Create a Razorpay order via Firebase Function
-            const firebase = window.firebase;
-            const functions = firebase.functions();
-            
-            // Call the createOrder function
-            const createOrder = firebase.functions().httpsCallable('createOrder');
-            
-            const orderData = {
-                amount: 49900, // ₹499 in paise
-                currency: 'INR',
-                package: 'premium',
-                duration: '1 year'
-            };
-            
-            // Create the order
-            const response = await createOrder(orderData);
-            const { orderId, amount, currency } = response.data;
-            
-            // Load Razorpay script if not already loaded
-            await this.loadRazorpayScript();
-            
-            // Configure Razorpay options
-            const options = {
-                key: 'rzp_live_GgEM5tXGq55aA0', // Replace with your actual key
-                amount: amount,
-                currency: currency,
-                name: 'NextStep',
-                description: 'Premium Membership',
-                order_id: orderId,
-                image: '/nextstep_logo.jpeg',
-                prefill: {
-                    name: window.Auth.user.displayName || '',
-                    email: window.Auth.user.email || '',
-                },
-                theme: {
-                    color: '#006B6B'
-                },
-                handler: function(response) {
-                    // This function is called when payment succeeds
-                    PaymentAuth.verifyPaymentWithServer(response);
-                }
-            };
-            
-            // Initialize Razorpay
-            const razorpay = new window.Razorpay(options);
-            razorpay.open();
-            
-            // Hide modal when opening Razorpay
-            const paymentModal = document.getElementById('paymentModal');
+        // As a last resort, try to load the payment modal
+        this.loadPaymentModal().then(() => {
+            paymentModal = document.getElementById('paymentModal');
             if (paymentModal) {
-                paymentModal.style.display = 'none';
+                paymentModal.style.display = 'block';
+            } else {
+                console.error('Failed to load payment modal');
             }
-            
-        } catch (error) {
-            console.error('Error initializing payment:', error);
-            
-            if (window.showToast) {
-                window.showToast('Failed to initialize payment. Please try again.', 'error');
-            }
-        } finally {
-            // Reset button state
-            const button = document.getElementById('razorpay-button');
-            if (button) {
-                button.disabled = false;
-                button.innerHTML = '<i class="fas fa-credit-card"></i> Pay ₹499';
-            }
-        }
-    }
-    
-    /**
-     * Load Razorpay script
-     * @returns {Promise} Resolves when script is loaded
-     */
-    static loadRazorpayScript() {
-        return new Promise((resolve, reject) => {
-            // If already loaded, resolve immediately
-            if (window.Razorpay) {
-                resolve();
-                return;
-            }
-            
-            // Load the script
-            const script = document.createElement('script');
-            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-            script.onload = resolve;
-            script.onerror = reject;
-            document.body.appendChild(script);
+        }).catch(error => {
+            console.error('Error loading payment modal:', error);
         });
     }
     
@@ -768,228 +607,57 @@ class PaymentAuth {
     }
     
     /**
-     * Verify payment with server
-     * @param {Object} paymentResponse - Response from Razorpay
+     * Verify and activate a redemption code
+     * @param {string} code - The redemption code to verify
+     * @returns {Promise<boolean>} Whether verification was successful
      */
-    static async verifyPaymentWithServer(paymentResponse) {
-        if (!window.Auth || !window.Auth.isLoggedIn) return;
+    static async verifyRedemptionCode(code) {
+        if (!code || !this.user) return false;
         
-        try {
-            if (window.showToast) {
-                window.showToast('Verifying payment...', 'info');
-            }
+        // For testing/demo purposes until Firebase implementation is complete
+        if (code.toUpperCase() === 'NEXTSTEP123' || 
+            code.toUpperCase() === 'DEMO2024' ||
+            code.toUpperCase() === 'WELCOME10') {
             
-            // Call the verifyPayment function
-            const firebase = window.firebase;
-            const verifyPayment = firebase.functions().httpsCallable('verifyPayment');
-            const response = await verifyPayment(paymentResponse);
+            // Create expiry date (30 days from now)
+            const now = new Date();
+            const expiryDate = new Date(now);
+            expiryDate.setDate(expiryDate.getDate() + 30);
             
-            if (response.data.success) {
-                // Update local payment status
-                this.isPaid = true;
-                this.paymentExpiry = response.data.expiryDate;
-                
-                // Store in localStorage for backup access
-                this.storePaymentData();
-                
-                // Update UI
-                this.updateUI();
-                
-                if (window.showToast) {
-                    window.showToast('Payment successful! Premium features activated.', 'success');
-                }
-            } else {
-                if (window.showToast) {
-                    window.showToast('Payment verification failed. Please contact support.', 'error');
-                }
-            }
-        } catch (error) {
-            console.error('Error verifying payment:', error);
-            
-            if (window.showToast) {
-                window.showToast('Error verifying payment. Please contact support.', 'error');
-            }
-        }
-    }
-    
-    /**
-     * Show verification error message
-     * @param {string} message - Error message to show
-     */
-    static showVerificationError(message) {
-        const errorElement = document.getElementById('verification-error');
-        if (errorElement) {
-            errorElement.textContent = message;
-        }
-    }
-    
-    /**
-     * Verify a verification code
-     * @param {string} code - The verification code to verify
-     */
-    static async verifyCode(code) {
-        if (!window.Auth || !window.Auth.isLoggedIn) {
-            if (window.showToast) {
-                window.showToast('Please log in first', 'warning');
-            }
-            return;
-        }
-        
-        try {
-            // Show loading state
-            const button = document.getElementById('verify-code-button');
-            if (button) {
-                button.disabled = true;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
-            }
-            
-            // Clear any previous error
-            this.showVerificationError('');
-            
-            // Connect to Firestore
-            const firebase = window.firebase;
-            const db = firebase.firestore();
-            
-            // Query for the verification code
-            const codesRef = db.collection('verificationCodes');
-            const query = codesRef.where('code', '==', code.toUpperCase())
-                               .where('isActive', '==', true)
-                               .limit(1);
-            
-            const snapshot = await query.get();
-            
-            if (snapshot.empty) {
-                this.showVerificationError('Invalid verification code. Please check and try again.');
-                return;
-            }
-            
-            const codeDoc = snapshot.docs[0];
-            const codeData = codeDoc.data();
-            
-            // Check if code has reached max uses
-            if (codeData.usedCount >= codeData.maxUses) {
-                this.showVerificationError('This code has already been used the maximum number of times.');
-                return;
-            }
-            
-            // Check if user has already used this code
-            if (codeData.usedBy && codeData.usedBy.includes(window.Auth.user.uid)) {
-                this.showVerificationError('You have already used this code.');
-                return;
-            }
-            
-            // Use a transaction to update the code usage and user status
-            await db.runTransaction(async (transaction) => {
-                // Get fresh code document in transaction
-                const codeRef = codeDoc.ref;
-                const freshCodeDoc = await transaction.get(codeRef);
-                
-                if (!freshCodeDoc.exists) {
-                    throw new Error('Code no longer exists');
-                }
-                
-                const freshCodeData = freshCodeDoc.data();
-                
-                // Check if still valid in transaction
-                if (!freshCodeData.isActive) {
-                    throw new Error('Code is no longer active');
-                }
-                
-                if (freshCodeData.usedCount >= freshCodeData.maxUses) {
-                    throw new Error('Code has reached maximum usage limit');
-                }
-                
-                if (freshCodeData.usedBy && freshCodeData.usedBy.includes(window.Auth.user.uid)) {
-                    throw new Error('You have already used this code');
-                }
-                
-                // Calculate expiry date
-                const now = new Date();
-                const expiryDate = new Date(now);
-                expiryDate.setDate(expiryDate.getDate() + freshCodeData.expiryDays);
-                
-                // Update code document
-                transaction.update(codeRef, {
-                    usedCount: firebase.firestore.FieldValue.increment(1),
-                    usedBy: firebase.firestore.FieldValue.arrayUnion(window.Auth.user.uid),
-                    lastUsedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                
-                // Update user document
-                const userRef = db.collection('users').doc(window.Auth.user.uid);
-                transaction.update(userRef, {
-                    isPaid: true,
-                    paymentExpiry: expiryDate.toISOString(),
-                    verificationCode: code,
-                    verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    paymentHistory: firebase.firestore.FieldValue.arrayUnion({
-                        type: 'verification_code',
-                        code: code,
-                        timestamp: now.toISOString(),
-                        expiryDate: expiryDate.toISOString()
-                    })
-                });
-                
-                // Save expiry date for local use
-                this.paymentExpiry = expiryDate.toISOString();
-                return expiryDate.toISOString();
-            });
-            
-            // Code verification successful
+            // Set payment status
             this.isPaid = true;
+            this.paymentExpiry = expiryDate.toISOString();
             
-            // Store in localStorage for backup access
+            // Store in localStorage
             this.storePaymentData();
             
             // Update UI
             this.updateUI();
             
-            // Close the payment modal
-            const paymentModal = document.getElementById('paymentModal');
-            if (paymentModal) {
-                paymentModal.style.display = 'none';
-            }
+            // Notify listeners
+            window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+                detail: { 
+                    isPaid: true,
+                    expiryDate: expiryDate.toISOString()
+                }
+            }));
             
-            if (window.showToast) {
-                window.showToast('Verification successful! Premium features activated.', 'success');
-            }
-        } catch (error) {
-            console.error('Error verifying code:', error);
-            
-            // Show error message
-            this.showVerificationError(error.message || 'Failed to verify code. Please try again.');
-            
-            if (window.showToast) {
-                window.showToast('Verification failed. Please try again.', 'error');
-            }
-        } finally {
-            // Reset button state
-            const button = document.getElementById('verify-code-button');
-            if (button) {
-                button.disabled = false;
-                button.innerHTML = '<i class="fas fa-check"></i> Verify';
-            }
+            return true;
         }
+        
+        return false;
     }
 }
 
 // Initialize PaymentAuth when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing PaymentAuth');
-    
-    // Check if document is already loaded
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        setTimeout(() => PaymentAuth.init(), 100);
-    } else {
-        // Initialize immediately
-        PaymentAuth.init();
-    }
+    setTimeout(() => PaymentAuth.init(), 100);
 });
 
 // Also initialize when Auth is ready
 document.addEventListener('authInitialized', () => {
     console.log('Auth initialized, ensuring PaymentAuth is initialized');
-    // Ensure PaymentAuth is initialized after Auth
     PaymentAuth.init();
 });
 
