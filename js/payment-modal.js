@@ -519,21 +519,26 @@ static async redeemCode() {
         const userId = currentUser.uid;
         
         // Direct access to Firestore - bypass wrapper functions
-        window.firebase.firestore().collection('verificationCodes')
-            .where('code', '==', code)
-            .where('isActive', '==', true)
-            .limit(1)
-            .get()
-            .then((querySnapshot) => {
-                if (querySnapshot.empty) {
-                    // No matching code found
-                    this.showRedemptionForm();
-                    if (errorElement) {
-                        errorElement.textContent = 'Invalid or expired redemption code';
-                    }
-                    this.isProcessing = false;
-                    return;
+if (window.firebase && window.firebase.firestore) {
+    // Create a reference to Firestore
+    const firestore = window.firebase.firestore();
+    
+    // Run the query using the Firestore reference
+    firestore.collection('verificationCodes')
+        .where('code', '==', code)
+        .where('isActive', '==', true)
+        .limit(1)
+        .get()
+        .then((querySnapshot) => {
+            if (querySnapshot.empty) {
+                // No matching code found
+                this.showRedemptionForm();
+                if (errorElement) {
+                    errorElement.textContent = 'Invalid or expired redemption code';
                 }
+                this.isProcessing = false;
+                return;
+            }
                 
                 // Get the first (should be only) matching document
                 const codeDoc = querySnapshot.docs[0];
