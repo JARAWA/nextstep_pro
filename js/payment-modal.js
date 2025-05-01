@@ -35,18 +35,20 @@ class PaymentModal {
     static isProcessing = false;
     
     // Initialize the payment modal
-    static init() {
-        console.log('Initializing PaymentModal');
-        
-        // Check Firebase availability first
-        this.checkFirebaseStatus();
-        
-        // Check if the modal exists in the DOM
-        const paymentModal = document.getElementById('paymentModal');
-        if (!paymentModal) {
-            console.error('Payment modal not found in the DOM');
-            return;
-        }
+static init() {
+    console.log('Initializing PaymentModal');
+    
+    // Check Firebase availability first
+    this.checkFirebaseStatus();
+    
+    // Check if the modal exists in the DOM
+    const paymentModal = document.getElementById('paymentModal');
+    if (!paymentModal) {
+        console.log('Payment modal not found in the DOM, attempting to load it');
+        // Try to load the payment modal HTML
+        this.loadHTML();
+        return; // Exit initialization, it will be called again after HTML is loaded
+    }
         
         // First, hide all forms
         const forms = paymentModal.querySelectorAll('.payment-form');
