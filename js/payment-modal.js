@@ -211,96 +211,72 @@ static init() {
     
 static checkFirebaseStatus() {
     try {
-        // Try to access Firebase from window
         if (window.firebase && window.firebase.firestore) {
             console.log('Firebase detected via window.firebase');
-            
-            // Update the auth reference
-            auth = window.firebase.auth();
-            
-            // Initialize Firestore variables - this is crucial
-            db = window.firebase.firestore();
-            
-            // Initialize Firestore functions based on Firebase version
-            // For Firebase v8 (non-modular API)
-            collection = function(path) {
+
+            // Declare the Firebase-related variables
+            const auth = window.firebase.auth();
+            const db = window.firebase.firestore();
+
+            // Initialize helper functions
+            const collection = function(path) {
                 return db.collection(path);
             };
-            
-            query = function(collRef, ...constraints) {
-                // In v8, the query constraints are added directly to the collection reference
-                return collRef;
+
+            const query = function(collRef, ...constraints) {
+                let ref = collRef;
+                constraints.forEach(constraint => {
+                    if (constraint && constraint.field) {
+                        ref = ref.where(constraint.field, constraint.op, constraint.value);
+                    }
+                });
+                return ref;
             };
-            
-            where = function(field, op, value) {
-                return {
-                    field: field,
-                    op: op,
-                    value: value
-                };
+
+            const where = function(field, op, value) {
+                return { field, op, value };
             };
-            
-            getDocs = function(q) {
-                // In v8, we call get() on the query
+
+            const getDocs = function(q) {
                 return q.get();
             };
-            
-            doc = function(collOrPath, ...pathSegments) {
+
+            const doc = function(collOrPath, ...pathSegments) {
                 if (typeof collOrPath === 'string') {
-                    return db.doc(collOrPath + '/' + pathSegments.join('/'));
+                    return db.doc(collOrPath);
                 } else {
-                    // If it's a collection reference, handle it properly
                     return collOrPath.doc(pathSegments[0]);
                 }
             };
-            
-            updateDoc = function(docRef, data) {
+
+            const updateDoc = function(docRef, data) {
                 return docRef.update(data);
             };
-            
-            // Access FieldValue
+
+            let increment, arrayUnion;
             if (window.firebase.firestore.FieldValue) {
                 increment = function(val) {
                     return window.firebase.firestore.FieldValue.increment(val);
                 };
-                
+
                 arrayUnion = function(...elements) {
                     return window.firebase.firestore.FieldValue.arrayUnion(...elements);
                 };
             }
-            
+
             this.firebaseAvailable = true;
             console.log('Firebase is available. Full payment functionality enabled.');
             this.updateUIForFirebaseStatus(true);
-            return;
+        } else {
+            throw new Error("Firebase or Firestore not found in window object");
         }
-        
-        // Check if auth is available
-        if (!auth) {
-            console.warn('Firebase auth not detected. Payment functionality will be limited.');
-            this.firebaseAvailable = false;
-            this.updateUIForFirebaseStatus(false);
-            return;
-        }
-        
-        // Additional check to make sure Firebase auth is properly initialized
-        if (typeof auth.onAuthStateChanged !== 'function') {
-            console.warn('Firebase auth not properly initialized');
-            this.firebaseAvailable = false;
-            this.updateUIForFirebaseStatus(false);
-            return;
-        }
-        
-        this.firebaseAvailable = true;
-        console.log('Firebase auth is available, but Firestore may not be fully initialized.');
-        this.updateUIForFirebaseStatus(true);
-        
     } catch (error) {
         console.error('Error checking Firebase status:', error);
         this.firebaseAvailable = false;
         this.updateUIForFirebaseStatus(false);
     }
 }
+
     
     // Update UI based on Firebase availability
     static updateUIForFirebaseStatus(isAvailable) {
