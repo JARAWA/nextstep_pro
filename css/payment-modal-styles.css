@@ -392,3 +392,45 @@
         flex-direction: row;
     }
 }
+
+/* Add to your payment-modal-styles.css */
+.payment-error {
+    text-align: center;
+    padding: 30px 15px;
+}
+
+.error-icon {
+    font-size: 60px;
+    color: #d32f2f;
+    margin-bottom: 15px;
+}
+
+.retry-btn {
+    background-color: #006B6B;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    transition: all 0.3s ease;
+}
+
+.retry-btn:hover {
+    background-color: #005757;
+    transform: translateY(-2px);
+}
+
+a[href^="mailto"] {
+    color: #006B6B;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+a[href^="mailto"]:hover {
+    text-decoration: underline;
+}
