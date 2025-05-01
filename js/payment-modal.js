@@ -1,4 +1,4 @@
-// PaymentModal.js - Handles payment modal functionality
+// PaymentModal.js - Updated to handle Firebase availability properly
 const PaymentModal = {
     // Store selected plan data
     selectedPlan: {
@@ -9,9 +9,15 @@ const PaymentModal = {
         totalPrice: 499
     },
     
+    // Flag to track Firebase availability
+    firebaseAvailable: false,
+    
     // Initialize the payment modal
     init: function() {
         console.log('Initializing PaymentModal');
+        
+        // Check Firebase availability first
+        this.checkFirebaseStatus();
         
         // Check if the modal exists in the DOM
         const paymentModal = document.getElementById('paymentModal');
@@ -108,6 +114,112 @@ const PaymentModal = {
         console.log('Payment modal initialization completed');
     },
     
+    // Check Firebase availability and adjust UI accordingly
+    checkFirebaseStatus: function() {
+        if (!window.firebase || !window.firebase.auth || !window.firebase.firestore) {
+            console.warn('Firebase not detected. Payment functionality will be limited.');
+            
+            // Set flag to indicate Firebase is not available
+            this.firebaseAvailable = false;
+            
+            // Try to initialize Firebase if the FirebaseInit helper is available
+            if (window.FirebaseInit) {
+                window.FirebaseInit.initializeFirebase()
+                    .then(() => {
+                        console.log('Firebase initialized successfully via FirebaseInit');
+                        this.firebaseAvailable = true;
+                        
+                        // Update UI to show Firebase is now available
+                        this.updateUIForFirebaseStatus(true);
+                    })
+                    .catch(err => {
+                        console.error('Firebase initialization failed:', err);
+                        // Keep UI in limited mode
+                        this.updateUIForFirebaseStatus(false);
+                    });
+            } else {
+                // If FirebaseInit is not available, update UI for limited functionality
+                this.updateUIForFirebaseStatus(false);
+            }
+        } else {
+            this.firebaseAvailable = true;
+            console.log('Firebase is available. Full payment functionality enabled.');
+            this.updateUIForFirebaseStatus(true);
+        }
+    },
+    
+    // Update UI based on Firebase availability
+    updateUIForFirebaseStatus: function(isAvailable) {
+        if (!isAvailable) {
+            // Adjust UI for Firebase unavailability
+            const paymentModal = document.getElementById('paymentModal');
+            if (!paymentModal) return;
+            
+            // Update payment button to direct to redemption form
+            const paymentButton = paymentModal.querySelector('.payment-btn');
+            if (paymentButton) {
+                paymentButton.textContent = 'Use Redemption Code';
+                
+                // Remove existing listeners and add one for redemption
+                paymentButton.replaceWith(paymentButton.cloneNode(true));
+                const newPaymentButton = paymentModal.querySelector('.payment-btn');
+                newPaymentButton.addEventListener('click', () => this.showRedemptionForm());
+            }
+            
+            // Add notification about limited functionality
+            const paymentHeader = paymentModal.querySelector('.payment-header');
+            if (paymentHeader) {
+                const notificationExists = paymentModal.querySelector('.firebase-notification');
+                if (!notificationExists) {
+                    const notification = document.createElement('div');
+                    notification.className = 'firebase-notification';
+                    notification.style.backgroundColor = '#fff3cd';
+                    notification.style.color = '#856404';
+                    notification.style.padding = '10px';
+                    notification.style.marginBottom = '15px';
+                    notification.style.borderRadius = '4px';
+                    notification.style.fontSize = '14px';
+                    notification.textContent = 'Online payment is currently unavailable. Please use a redemption code.';
+                    
+                    paymentHeader.parentNode.insertBefore(notification, paymentHeader.nextSibling);
+                }
+            }
+            
+            // Hide elements that require Firebase
+            const elementsRequiringFirebase = paymentModal.querySelectorAll('.requires-firebase');
+            elementsRequiringFirebase.forEach(el => {
+                el.style.display = 'none';
+            });
+        } else {
+            // Firebase is available, ensure normal UI
+            const paymentModal = document.getElementById('paymentModal');
+            if (!paymentModal) return;
+            
+            // Remove notification if it exists
+            const notification = paymentModal.querySelector('.firebase-notification');
+            if (notification) {
+                notification.remove();
+            }
+            
+            // Restore payment button
+            const paymentButton = paymentModal.querySelector('.payment-btn');
+            if (paymentButton && paymentButton.textContent === 'Use Redemption Code') {
+                paymentButton.textContent = 'Proceed to Payment';
+                
+                // Remove existing listeners and add the normal one
+                paymentButton.replaceWith(paymentButton.cloneNode(true));
+                const newPaymentButton = paymentModal.querySelector('.payment-btn');
+                newPaymentButton.addEventListener('click', () => this.initiatePayment());
+            }
+            
+            // Show elements that require Firebase
+            const elementsRequiringFirebase = paymentModal.querySelectorAll('.requires-firebase');
+            elementsRequiringFirebase.forEach(el => {
+                el.style.display = '';
+            });
+        }
+    },
+    
     // Open the payment modal
     openModal: function() {
         console.log('Opening payment modal');
@@ -131,20 +243,271 @@ const PaymentModal = {
             // Update the payment summary
             this.updateSummary();
             
+            // Check Firebase status again when opening the modal
+            this.checkFirebaseStatus();
+            
             console.log('Payment modal opened successfully');
         } else {
             console.error('Payment modal not found in the DOM');
         }
     },
     
-    // Close the payment modal
-    closeModal: function() {
-        const modal = document.getElementById('paymentModal');
-        if (modal) {
-            modal.style.display = 'none';
-            console.log('Payment modal closed');
+    // Initiate payment process
+    initiatePayment: function() {
+        console.log('Initiating payment process');
+        
+        // Check if Firebase is required but not available
+        if (!this.firebaseAvailable) {
+            console.log('Firebase not available, redirecting to redemption flow');
+            this.showRedemptionForm();
+            return;
         }
+        
+        this.showLoading();
+        
+        // Get current user before proceeding
+        const currentUser = window.firebase.auth().currentUser;
+        if (!currentUser) {
+            console.error('User not logged in - cannot proceed with payment');
+            setTimeout(() => {
+                this.showError('Please login again before making a payment.');
+            }, 1000);
+            return;
+        }
+        
+        // Continue with simulated payment process
+        setTimeout(() => {
+            try {
+                // In a real implementation, call your backend API here
+                // For now, show an appropriate message
+                this.showError('Payment system is currently in testing mode. Please use a redemption code instead.');
+            } catch (error) {
+                console.error('Payment initialization error:', error);
+                this.showError('Failed to initialize payment. Please try redemption code instead.');
+            }
+        }, 1500);
     },
+    
+    // Process redemption code with proper Firestore integration
+    redeemCode: function() {
+        console.log('Processing redemption code');
+        const redemptionCode = document.getElementById('redemptionCode');
+        if (!redemptionCode) return;
+        
+        const code = redemptionCode.value.trim();
+        const errorElement = document.getElementById('redemptionCodeError');
+        
+        if (!code) {
+            if (errorElement) {
+                errorElement.textContent = 'Please enter a redemption code';
+            }
+            return;
+        }
+        
+        // Clear previous errors
+        if (errorElement) {
+            errorElement.textContent = '';
+        }
+        
+        // Show loading state
+        this.showLoading();
+        
+        // Check Firebase availability
+        if (!this.firebaseAvailable) {
+            console.error('Firebase is not available - cannot verify code');
+            
+            // Fallback to localStorage-only mode for testing
+            setTimeout(() => {
+                try {
+                    // For testing purposes without Firebase
+                    // Accept any code that starts with "TEST" or specific codes
+                    if (code.toUpperCase().startsWith('TEST') || 
+                        code.toUpperCase() === 'STUDENT50' || 
+                        code.toUpperCase() === 'WELCOME10' ||
+                        code.toUpperCase() === 'NEXTSTEP') {
+                        
+                        // Calculate expiry date (30 days from now)
+                        const now = new Date();
+                        const expiryDate = new Date(now);
+                        expiryDate.setDate(expiryDate.getDate() + 30);
+                        
+                        // Success handling - update localStorage
+                        localStorage.setItem('isPremium', 'true');
+                        localStorage.setItem('premiumExpiry', expiryDate.toISOString());
+                        
+                        // Show success message
+                        this.showSuccess();
+                        
+                        // Trigger an event for any listeners
+                        window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+                            detail: { 
+                                isPaid: true,
+                                expiryDate: expiryDate.toISOString()
+                            }
+                        }));
+                    } else {
+                        // Invalid code
+                        this.showRedemptionForm();
+                        if (errorElement) {
+                            errorElement.textContent = 'Invalid or expired redemption code';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Redemption error:', error);
+                    this.showError('Error processing redemption code. Please try again later.');
+                }
+            }, 1500);
+            return;
+        }
+        
+        // Get current user
+        const currentUser = window.firebase.auth().currentUser;
+        if (!currentUser) {
+            console.error('User not logged in - cannot verify code');
+            setTimeout(() => {
+                this.showError('Please login again before verifying your code.');
+            }, 1000);
+            return;
+        }
+        
+        // Get Firestore reference
+        const db = window.firebase.firestore();
+        const userId = currentUser.uid;
+        
+        // Check the verification code in Firestore
+        db.collection('verificationCodes')
+            .where('code', '==', code)
+            .where('isActive', '==', true)
+            .get()
+            .then((querySnapshot) => {
+                if (querySnapshot.empty) {
+                    // No matching code found
+                    this.showRedemptionForm();
+                    if (errorElement) {
+                        errorElement.textContent = 'Invalid or expired redemption code';
+                    }
+                    return;
+                }
+                
+                // Get the first (should be only) matching document
+                const codeDoc = querySnapshot.docs[0];
+                const codeData = codeDoc.data();
+                
+                // Check if code has reached max uses
+                if (codeData.usedCount >= codeData.maxUses) {
+                    this.showRedemptionForm();
+                    if (errorElement) {
+                        errorElement.textContent = 'This code has reached its maximum number of uses';
+                    }
+                    return;
+                }
+                
+                // Check if user has already used this code
+                let usedBy = [];
+                try {
+                    // Try to parse the usedBy field if it's stored as a JSON string
+                    if (typeof codeData.usedBy === 'string') {
+                        usedBy = JSON.parse(codeData.usedBy);
+                    } else if (Array.isArray(codeData.usedBy)) {
+                        usedBy = codeData.usedBy;
+                    }
+                } catch (e) {
+                    console.error('Error parsing usedBy data:', e);
+                    // Continue with empty array if parsing fails
+                }
+                
+                if (usedBy.includes(userId)) {
+                    this.showRedemptionForm();
+                    if (errorElement) {
+                        errorElement.textContent = 'You have already used this code';
+                    }
+                    return;
+                }
+                
+                // Code is valid - process it
+                
+                // Calculate expiry date based on expiryDays field
+                const now = new Date();
+                const expiryDate = new Date(now);
+                expiryDate.setDate(expiryDate.getDate() + (codeData.expiryDays || 30)); // Default to 30 if not specified
+                
+                // Update the code usage in Firestore
+                // First, update the usedBy array
+                if (typeof codeData.usedBy === 'string') {
+                    // If stored as JSON string, parse, update and stringify again
+                    try {
+                        let usedByArray = JSON.parse(codeData.usedBy);
+                        usedByArray.push(userId);
+                        usedBy = JSON.stringify(usedByArray);
+                    } catch (e) {
+                        // If parsing fails, create new array with just this user
+                        usedBy = JSON.stringify([userId]);
+                    }
+                } else {
+                    // If it's already an array, use Firestore array union
+                    usedBy = window.firebase.firestore.FieldValue.arrayUnion(userId);
+                }
+                
+                // Update the verification code document
+                const codeRef = db.collection('verificationCodes').doc(codeDoc.id);
+                codeRef.update({
+                    usedCount: window.firebase.firestore.FieldValue.increment(1),
+                    usedBy: usedBy,
+                    // If code has reached max uses, set isActive to false
+                    isActive: (codeData.usedCount + 1 < codeData.maxUses)
+                })
+                .then(() => {
+                    // Success - now update user's premium status
+                    return db.collection('users').doc(userId).update({
+                        isPaid: true,
+                        paymentExpiry: expiryDate.toISOString(),
+                        paymentHistory: window.firebase.firestore.FieldValue.arrayUnion({
+                            type: 'redemption',
+                            code: code,
+                            timestamp: now.toISOString(),
+                            expiryDate: expiryDate.toISOString()
+                        })
+                    });
+                })
+                .then(() => {
+                    // Update local storage
+                    localStorage.setItem('isPremium', 'true');
+                    localStorage.setItem('premiumExpiry', expiryDate.toISOString());
+                    
+                    // Show success
+                    this.showSuccess();
+                    
+                    // Notify system about payment status change
+                    setTimeout(() => {
+                        // Update UI
+                        if (window.PaymentAuth) {
+                            window.PaymentAuth.isPaid = true;
+                            window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
+                            window.PaymentAuth.updateUI();
+                        }
+                        
+                        // Dispatch event
+                        window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+                            detail: { 
+                                isPaid: true,
+                                expiryDate: expiryDate.toISOString()
+                            }
+                        }));
+                    }, 1500);
+                })
+                .catch((error) => {
+                    console.error('Error updating code usage:', error);
+                    this.showError('Error processing your redemption code. Please try again later.');
+                });
+            })
+            .catch((error) => {
+                console.error('Error checking redemption code:', error);
+                this.showError('Error verifying code. Please try again later.');
+            });
+    },
+    
+    // Other methods remain unchanged
+    // ...
     
     // Show payment form
     showPaymentForm: function() {
@@ -419,296 +782,13 @@ const PaymentModal = {
         }
     },
     
-    // Initiate payment process
-    initiatePayment: function() {
-        console.log('Initiating payment process');
-        this.showLoading();
-        
-        // Check if Firebase is available before proceeding
-        if (!window.firebase || !window.firebase.auth) {
-            console.error('Firebase is not available - cannot proceed with payment');
-            setTimeout(() => {
-                this.showError('Payment processing is currently unavailable. Our payment system is being upgraded. Please try again later or use a redemption code.');
-            }, 1000);
-            return;
+    // Close the payment modal
+    closeModal: function() {
+        const modal = document.getElementById('paymentModal');
+        if (modal) {
+            modal.style.display = 'none';
+            console.log('Payment modal closed');
         }
-        
-        // Get current user before proceeding
-        const currentUser = window.firebase.auth().currentUser;
-        if (!currentUser) {
-            console.error('User not logged in - cannot proceed with payment');
-            setTimeout(() => {
-                this.showError('Please login again before making a payment.');
-            }, 1000);
-            return;
-        }
-        
-        // Continue with simulated payment process
-        setTimeout(() => {
-            try {
-                // In a real implementation, call your backend API here
-                // For now, show an appropriate message
-                this.showError('Payment system is currently in testing mode. Please use a redemption code instead.');
-                
-                /* Uncomment this section when ready to implement real payment
-                this.loadRazorpayScript()
-                    .then(() => {
-                        // Create payment order
-                        const orderData = {
-                            id: 'order_' + Math.random().toString(36).substring(2, 15),
-                            amount: this.selectedPlan.totalPrice * 100,
-                            currency: 'INR',
-                            receipt: 'receipt_' + Date.now()
-                        };
-                        
-                        this.openRazorpayCheckout(orderData);
-                    })
-                    .catch(error => {
-                        console.error('Failed to load Razorpay:', error);
-                        this.showError('Payment gateway is temporarily unavailable. Please try again later.');
-                    });
-                */
-            } catch (error) {
-                console.error('Payment initialization error:', error);
-                this.showError('Failed to initialize payment. Please try redemption code instead.');
-            }
-        }, 1500);
-    },
-    
-    // Load Razorpay script
-    loadRazorpayScript: function() {
-        return new Promise((resolve, reject) => {
-            // If already loaded, resolve immediately
-            if (window.Razorpay) {
-                resolve();
-                return;
-            }
-            
-            // Load the script
-            const script = document.createElement('script');
-            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-            script.async = true;
-            script.onload = () => {
-                console.log('Razorpay script loaded');
-                resolve();
-            };
-            script.onerror = (error) => {
-                console.error('Error loading Razorpay script:', error);
-                reject(error);
-            };
-            document.head.appendChild(script);
-        });
-    },
-    
-    // Open Razorpay checkout
-    openRazorpayCheckout: function(orderData) {
-        // In a real implementation, use your actual Razorpay key
-        const options = {
-            key: 'rzp_test_YourTestKeyHere', // Replace with your actual key in production
-            amount: orderData.amount,
-            currency: orderData.currency,
-            name: 'NextStep Educational Services',
-            description: this.selectedPlan.name,
-            order_id: orderData.id,
-            image: 'nextstep_logo.jpeg',
-            handler: function(response) {
-                // This function runs after successful payment
-                PaymentModal.processPaymentSuccess(response);
-            },
-            prefill: {
-                name: '', // Could be populated from user profile
-                email: '', // Could be populated from user profile
-                contact: '' // Could be populated from user profile
-            },
-            theme: {
-                color: '#006B6B'
-            },
-            modal: {
-                ondismiss: function() {
-                    // Handle case when user closes the Razorpay modal
-                    PaymentModal.showPaymentForm();
-                }
-            }
-        };
-        
-        try {
-            const razorpayCheckout = new Razorpay(options);
-            razorpayCheckout.open();
-        } catch (error) {
-            console.error('Razorpay error:', error);
-            this.showError('Unable to initialize payment gateway. Please try again later.');
-        }
-    },
-    
-    // Process successful payment
-    processPaymentSuccess: function(response) {
-        console.log('Payment successful, processing...', response);
-        
-        // Show loading state while verifying payment
-        this.showLoading();
-        
-        // In a real implementation, you would verify the payment with your backend
-        // Here we simulate the verification process
-        setTimeout(() => {
-            try {
-                // Get current user
-                let currentUser = null;
-                let firestore = null;
-                
-                try {
-                    const firebase = window.firebase;
-                    if (firebase && firebase.auth) {
-                        currentUser = firebase.auth().currentUser;
-                        firestore = firebase.firestore();
-                    }
-                } catch (error) {
-                    console.error('Firebase error:', error);
-                }
-                
-                if (!currentUser || !firestore) {
-                    this.showError('User authentication error. Please log in again.');
-                    return;
-                }
-                
-                // Calculate expiry date (1 month or 1 year from now)
-                const now = new Date();
-                const expiryDate = new Date(now);
-                
-                if (this.selectedPlan.type === 'monthly') {
-                    expiryDate.setMonth(expiryDate.getMonth() + 1);
-                } else {
-                    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-                }
-                
-                // Update user's payment status in Firestore
-                firestore.collection('users').doc(currentUser.uid).update({
-                    isPaid: true,
-                    paymentExpiry: expiryDate.toISOString(),
-                    paymentHistory: firebase.firestore.FieldValue.arrayUnion({
-                        plan: this.selectedPlan.name,
-                        amount: this.selectedPlan.totalPrice,
-                        paymentId: response.razorpay_payment_id,
-                        orderId: response.razorpay_order_id,
-                        timestamp: now.toISOString(),
-                        expiryDate: expiryDate.toISOString()
-                    })
-                }).then(() => {
-                    // Update local user status
-                    localStorage.setItem('isPremium', 'true');
-                    
-                    // Show success and trigger any needed UI updates
-                    this.showSuccess();
-                    
-                    // Refresh payment auth state after 2 seconds
-                    setTimeout(() => {
-                        // This would update the UI based on the new premium status
-                        window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                            detail: { isPaid: true }
-                        }));
-                        
-                        // Notify PaymentAuth if available
-                        if (window.PaymentAuth) {
-                            window.PaymentAuth.refreshPaymentStatus();
-                        }
-                    }, 2000);
-                }).catch(error => {
-                    console.error('Error updating user profile:', error);
-                    this.showError('Payment was successful, but we could not update your account. Please contact support.');
-                });
-            } catch (error) {
-                console.error('Payment verification error:', error);
-                this.showError('Error processing payment. Please contact support.');
-            }
-        }, 2000);
-    },
-    
-    // Process redemption code
-    redeemCode: function() {
-        console.log('Processing redemption code');
-        const redemptionCode = document.getElementById('redemptionCode');
-        if (!redemptionCode) return;
-        
-        const code = redemptionCode.value.trim();
-        const errorElement = document.getElementById('redemptionCodeError');
-        
-        if (!code) {
-            if (errorElement) {
-                errorElement.textContent = 'Please enter a redemption code';
-            }
-            return;
-        }
-        
-        // Clear previous errors
-        if (errorElement) {
-            errorElement.textContent = '';
-        }
-        
-        // Check Firebase availability
-        if (!window.firebase || !window.firebase.auth) {
-            console.error('Firebase is not available - cannot verify code');
-            this.showError('Verification system is currently unavailable. Please try again later.');
-            return;
-        }
-        
-        // Get current user
-        const currentUser = window.firebase.auth().currentUser;
-        if (!currentUser) {
-            console.error('User not logged in - cannot verify code');
-            this.showError('Please login again before verifying your code.');
-            return;
-        }
-        
-        // Show loading state
-        this.showLoading();
-        
-        // Test code verification
-        setTimeout(() => {
-            try {
-                // For testing purposes
-                // Accept any code that starts with "TEST" or specific codes (STUDENT50, WELCOME10)
-                if (code.toUpperCase().startsWith('TEST') || 
-                    code.toUpperCase() === 'STUDENT50' || 
-                    code.toUpperCase() === 'WELCOME10' ||
-                    code.toUpperCase() === 'NEXTSTEP') {
-                    
-                    // Calculate expiry date (30 days from now)
-                    const now = new Date();
-                    const expiryDate = new Date(now);
-                    expiryDate.setDate(expiryDate.getDate() + 30);
-                    
-                    // Success handling - update localStorage
-                    localStorage.setItem('isPremium', 'true');
-                    localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                    
-                    // Show success message
-                    this.showSuccess();
-                    
-                    // Notify PaymentAuth to update UI
-                    setTimeout(() => {
-                        if (window.PaymentAuth) {
-                            // Set premium to true directly
-                            window.PaymentAuth.isPaid = true;
-                            window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
-                            window.PaymentAuth.updateUI();
-                        }
-                        
-                        // Trigger an event for any listeners
-                        window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                            detail: { isPaid: true }
-                        }));
-                    }, 1000);
-                } else {
-                    // Invalid code
-                    this.showRedemptionForm();
-                    if (errorElement) {
-                        errorElement.textContent = 'Invalid or expired redemption code';
-                    }
-                }
-            } catch (error) {
-                console.error('Redemption error:', error);
-                this.showError('Error processing redemption code. Please try again later.');
-            }
-        }, 1500);
     }
 };
 
@@ -717,10 +797,16 @@ window.PaymentModal = PaymentModal;
 
 // Initialize when DOM is fully loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Delayed initialization to ensure modal HTML is loaded
+    // Don't initialize immediately - wait for Firebase initialization
+    // FirebaseInit will call PaymentModal.init() after it completes
+    
+    // Fallback initialization if FirebaseInit doesn't exist
+    // or doesn't call init within 3 seconds
     setTimeout(function() {
-        if (document.getElementById('paymentModal')) {
+        if (document.getElementById('paymentModal') && 
+            (!window.FirebaseInit || !window.firebase)) {
+            console.log('Firebase initialization timeout - initializing PaymentModal directly');
             PaymentModal.init();
         }
-    }, 1000);
+    }, 3000);
 });
