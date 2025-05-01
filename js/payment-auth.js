@@ -251,9 +251,7 @@ static loadPaymentModal() {
                 }
             }
             
-            // Add click handler to show payment modal for non-premium users
-            element.addEventListener('click', this.premiumClickHandler);
-        });
+       });
         
         // Add show premium modal handler to all premium buttons
         const premiumButtons = document.querySelectorAll('.premium-btn');
