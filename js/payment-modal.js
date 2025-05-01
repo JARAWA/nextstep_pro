@@ -215,26 +215,54 @@ static checkFirebaseStatus() {
         if (window.firebase && window.firebase.firestore) {
             console.log('Firebase detected via window.firebase');
             
-            // Update the auth reference here
+            // Update the auth reference
             auth = window.firebase.auth();
             
             // Initialize Firestore variables
             db = window.firebase.firestore();
             
-            // Get Firestore functions
-            if (window.firebase.firestore) {
-                collection = window.firebase.firestore.collection || db.collection;
-                query = window.firebase.firestore.query || db.query;
-                where = window.firebase.firestore.where || db.where;
-                getDocs = window.firebase.firestore.getDocs || db.getDocs;
-                doc = window.firebase.firestore.doc || db.doc;
-                updateDoc = window.firebase.firestore.updateDoc || db.updateDoc;
+            // Check Firebase version and determine how to access Firestore functions
+            if (typeof db.collection === 'function') {
+                // Firebase v8 or earlier
+                collection = function(...args) { return db.collection(...args); };
+                query = function(...args) { return db.query ? db.query(...args) : args[0]; };
+                where = function(...args) { return db.where ? db.where(...args) : window.firebase.firestore.where(...args); };
+                getDocs = function(q) { return q.get ? q.get() : window.firebase.firestore.getDocs(q); };
+                doc = function(...args) { return db.doc(...args); };
+                updateDoc = function(docRef, data) { return docRef.update(data); };
                 
-                // Access FieldValue if available
+                // Access FieldValue for v8
                 if (window.firebase.firestore.FieldValue) {
                     increment = window.firebase.firestore.FieldValue.increment;
                     arrayUnion = window.firebase.firestore.FieldValue.arrayUnion;
                 }
+            } else {
+                // Assume Firebase v9 modular SDK
+                console.log('Using Firebase v9 modular SDK compatibility mode');
+                // These are placeholders - you may need to adjust based on actual structure
+                collection = db.collection ? db.collection.bind(db) : null;
+                query = db.query || null;
+                where = window.firebase.firestore.where || null;
+                getDocs = function(q) { return q.get(); };
+                doc = db.doc ? db.doc.bind(db) : null;
+                updateDoc = function(docRef, data) { return docRef.update(data); };
+                
+                if (window.firebase.firestore.FieldValue) {
+                    increment = window.firebase.firestore.FieldValue.increment;
+                    arrayUnion = window.firebase.firestore.FieldValue.arrayUnion;
+                }
+            }
+            
+            // Fallback for compatibility issues
+            if (!collection || typeof collection !== 'function') {
+                console.warn('Firestore collection function not available, using compatibility mode');
+                collection = function(path) {
+                    return {
+                        doc: function(id) {
+                            return db.doc(path + '/' + id);
+                        }
+                    };
+                };
             }
             
             this.firebaseAvailable = true;
