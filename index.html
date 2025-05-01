@@ -226,58 +226,48 @@
     <script type="module" src="js/payment-modal.js"></script>
     <script type="module" src="js/payment-auth.js"></script>
 
-    // Add this to your HTML file, right before the closing body tag:
 <script>
-    // Debug helper to check premium elements after page load
-    window.addEventListener('load', function() {
-        console.log('Page fully loaded, checking premium elements');
-        
-        // Check if PaymentAuth exists
-        if (typeof PaymentAuth === 'undefined') {
-            console.error('PaymentAuth is not defined! Script may not be loaded properly.');
-        } else {
-            console.log('PaymentAuth is defined');
-            
-            // Find premium elements
-            const premiumElements = document.querySelectorAll('[data-requires-premium="true"]');
-            console.log(`Found ${premiumElements.length} premium elements:`, premiumElements);
-            
-            // Try to manually set up click handlers for testing
-            premiumElements.forEach(el => {
-                console.log('Premium element:', el);
-                el.addEventListener('click', function(e) {
-                    console.log('Premium element clicked (debug handler)');
-                    if (typeof PaymentAuth !== 'undefined') {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        PaymentAuth.showPaymentModal();
-                        return false;
-                    }
-                });
-            });
-        }
-    });
-</script>
-    // Add at the end of the HTML file temporarily
-<script>
-document.addEventListener('DOMContentLoaded', function() {
+  // Add this at the end of your index.html
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, checking payment modal status');
+    
+    // After a short delay to allow other scripts to initialize
     setTimeout(function() {
-        console.log('Checking modal state after load');
-        const paymentModal = document.getElementById('paymentModal');
-        if (paymentModal) {
-            console.log('Payment modal found in DOM');
-            const activeForms = paymentModal.querySelectorAll('.payment-form.active');
-            console.log(`${activeForms.length} active forms found`);
-            
-            // Test direct opening
-            if (window.PaymentModal) {
-                console.log('PaymentModal object found, can invoke:', typeof window.PaymentModal.openModal === 'function');
-            }
-        } else {
-            console.log('Payment modal NOT found in DOM');
+      const paymentModal = document.getElementById('paymentModal');
+      
+      if (paymentModal) {
+        console.log('Payment modal found in DOM');
+        
+        // Check which forms are currently active
+        const activeForms = paymentModal.querySelectorAll('.payment-form.active');
+        console.log(`Active payment forms: ${activeForms.length}`);
+        
+        // If no forms are active, activate the main one
+        if (activeForms.length === 0) {
+          console.log('No active forms found, activating payment form');
+          const paymentForm = document.getElementById('paymentForm');
+          if (paymentForm) {
+            paymentForm.classList.add('active');
+          }
         }
+        
+        // Verify payment button functionality
+        const paymentButton = paymentModal.querySelector('.payment-btn');
+        if (paymentButton) {
+          console.log('Payment button found, ensuring click handler is attached');
+          // Make sure it has a click handler
+          paymentButton.addEventListener('click', function() {
+            console.log('Payment button clicked via backup handler');
+            if (window.PaymentModal && typeof window.PaymentModal.initiatePayment === 'function') {
+              window.PaymentModal.initiatePayment();
+            }
+          });
+        }
+      } else {
+        console.error('Payment modal not found in DOM!');
+      }
     }, 2000);
-});
+  });
 </script>
 </body>
 </html>
