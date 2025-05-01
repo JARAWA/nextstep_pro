@@ -449,8 +449,8 @@ static async redeemCode() {
     // Show loading state
     this.showLoading();
     
-    // Check Firebase availability
-    if (!this.firebaseAvailable || !db) {
+    // Check Firebase availability - using fallback to localStorage if needed
+    if (!window.firebase || !window.firebase.firestore) {
         console.warn('Firebase is not available - using localStorage fallback');
         
         // Fallback to localStorage-only mode for testing
@@ -511,15 +511,12 @@ static async redeemCode() {
         
         const userId = currentUser.uid;
         
-        // Use the wrapper functions defined in checkFirebaseStatus
-        const codesCollection = collection('verificationCodes');
-        const codeQuery = query(
-            codesCollection, 
-            where('code', '==', code),
-            where('isActive', '==', true)
-        );
-        
-        getDocs(codeQuery)
+        // Direct access to Firestore - bypass wrapper functions
+        window.firebase.firestore().collection('verificationCodes')
+            .where('code', '==', code)
+            .where('isActive', '==', true)
+            .limit(1)
+            .get()
             .then((querySnapshot) => {
                 if (querySnapshot.empty) {
                     // No matching code found
@@ -575,18 +572,17 @@ static async redeemCode() {
                 const expiryDate = new Date(now);
                 expiryDate.setDate(expiryDate.getDate() + (codeData.expiryDays || 30)); // Default to 30 if not specified
                 
-                // Update the code usage in Firestore using the wrapped functions
-                const codeRef = doc(collection('verificationCodes'), codeDoc.id);
+                // Update the code usage in Firestore - direct access
+                const codeRef = window.firebase.firestore().collection('verificationCodes').doc(codeDoc.id);
                 
                 // Try to update the code document
-                updateDoc(codeRef, {
-                    usedCount: increment(1),
+                codeRef.update({
+                    usedCount: window.firebase.firestore.FieldValue.increment(1),
                     isActive: (codeData.usedCount + 1 < codeData.maxUses)
                 })
                 .then(() => {
                     // Update user's premium status
-                    const userRef = doc(collection('users'), userId);
-                    updateDoc(userRef, {
+                    window.firebase.firestore().collection('users').doc(userId).update({
                         isPaid: true,
                         paymentExpiry: expiryDate.toISOString()
                     })
