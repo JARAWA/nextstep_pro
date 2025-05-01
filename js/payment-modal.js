@@ -418,10 +418,7 @@ static checkFirebaseStatus() {
     }
     
     // Process redemption code - updated for Firebase v9 with improved error handling
-static async redeemCode() {
-    // Refresh the currentUser reference
-    auth.currentUser = window.Auth && window.Auth.user ? window.Auth.user : null;
-    
+static redeemCode() {
     // Prevent multiple submissions
     if (this.isProcessing) {
         console.log('Redemption already in progress, ignoring duplicate request');
@@ -456,271 +453,87 @@ static async redeemCode() {
     // Show loading state
     this.showLoading();
     
-    // Check Firebase availability
-    if (!window.firebase || !window.firebase.firestore) {
-        console.warn('Firebase is not available - using localStorage fallback');
-        
-        // Fallback to localStorage-only mode for testing
-        setTimeout(() => {
-            try {
-                // Test code validation
-                if (code.toUpperCase().startsWith('TEST') || 
-                    code.toUpperCase() === 'STUDENT50' || 
-                    code.toUpperCase() === 'WELCOME10' ||
-                    code.toUpperCase() === 'NEXTSTEP') {
-                    
-                    // Set expiry date (30 days from now)
-                    const now = new Date();
-                    const expiryDate = new Date(now);
-                    expiryDate.setDate(expiryDate.getDate() + 30);
-                    
-                    // Update localStorage
-                    localStorage.setItem('isPremium', 'true');
-                    localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                    
-                    // Show success message
-                    this.showSuccess();
-                    
-                    // Dispatch event
-                    window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                        detail: { 
-                            isPaid: true,
-                            expiryDate: expiryDate.toISOString()
-                        }
-                    }));
-                } else {
-                    // Invalid code
-                    this.showRedemptionForm();
-                    if (errorElement) {
-                        errorElement.textContent = 'Invalid or expired redemption code';
-                    }
-                }
+    // Fallback mode - always use localStorage for testing
+    setTimeout(() => {
+        try {
+            // For testing purposes
+            if (code.toUpperCase().startsWith('TEST') || 
+                code.toUpperCase() === 'STUDENT50' || 
+                code.toUpperCase() === 'WELCOME10' ||
+                code.toUpperCase() === 'NEXTSTEP') {
                 
-                this.isProcessing = false;
-            } catch (error) {
-                console.error('Redemption error:', error);
-                this.showError('Error processing redemption code. Please try again later.');
-                this.isProcessing = false;
-            }
-        }, 1500);
-        return;
-    }
-    
-    try {
-        // Get current user
-        const currentUser = auth.currentUser;
-        if (!currentUser) {
-            console.error('User not logged in - cannot verify code');
-            this.showError('You need to be logged in to verify your code. Please refresh the page and try again.');
-            this.isProcessing = false;
-            return;
-        }
-        
-        const userId = currentUser.uid;
-        
-        // Create a reference to Firestore
-        const firestore = window.firebase.firestore();
-        
-        // Process code with Firestore
-        firestore.collection('verificationCodes')
-            .where('code', '==', code)
-            .where('isActive', '==', true)
-            .limit(1)
-            .get()
-            .then((querySnapshot) => {
-                if (querySnapshot.empty) {
-                    // No matching code found
-                    this.showRedemptionForm();
-                    if (errorElement) {
-                        errorElement.textContent = 'Invalid or expired redemption code';
-                    }
-                    this.isProcessing = false;
-                    return;
-                }
-                
-                // Get the code document
-                const codeDoc = querySnapshot.docs[0];
-                const codeData = codeDoc.data();
-                
-                // Validation checks
-                if (codeData.usedCount >= codeData.maxUses) {
-                    this.showRedemptionForm();
-                    if (errorElement) {
-                        errorElement.textContent = 'This code has reached its maximum number of uses';
-                    }
-                    this.isProcessing = false;
-                    return;
-                }
-                
-                // Parse usedBy safely
-                let usedBy = [];
-                if (Array.isArray(codeData.usedBy)) {
-                    usedBy = codeData.usedBy;
-                } else if (typeof codeData.usedBy === 'string') {
-                    try {
-                        usedBy = JSON.parse(codeData.usedBy);
-                    } catch (e) {
-                        console.warn('Error parsing usedBy data, treating as empty array');
-                    }
-                }
-                
-                if (usedBy.includes(userId)) {
-                    this.showRedemptionForm();
-                    if (errorElement) {
-                        errorElement.textContent = 'You have already used this code';
-                    }
-                    this.isProcessing = false;
-                    return;
-                }
-                
-                // Calculate expiry date
+                // Calculate expiry date (30 days from now)
                 const now = new Date();
                 const expiryDate = new Date(now);
-                expiryDate.setDate(expiryDate.getDate() + (codeData.expiryDays || 30));
+                expiryDate.setDate(expiryDate.getDate() + 30);
                 
-                // Update code usage
-                const codeRef = firestore.collection('verificationCodes').doc(codeDoc.id);
-                codeRef.update({
-                    usedCount: window.firebase.firestore.FieldValue.increment(1),
-                    isActive: (codeData.usedCount + 1 < codeData.maxUses)
-                })
-                .then(() => {
-                    // Update user's premium status
-                    firestore.collection('users').doc(userId).update({
+                // Update localStorage
+                localStorage.setItem('isPremium', 'true');
+                localStorage.setItem('premiumExpiry', expiryDate.toISOString());
+                
+                // Show success message
+                this.showSuccess();
+                
+                // Dispatch event for any listeners
+                window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
+                    detail: { 
                         isPaid: true,
-                        paymentExpiry: expiryDate.toISOString()
-                    })
-                    .then(() => {
-                        // Update local storage
-                        localStorage.setItem('isPremium', 'true');
-                        localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                        
-                        // Show success
-                        this.showSuccess();
-                        
-                        // Update UI with event
-                        setTimeout(() => {
-                            if (window.PaymentAuth) {
-                                window.PaymentAuth.isPaid = true;
-                                window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
-                                window.PaymentAuth.updateUI();
-                            }
-                            
-                            window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                                detail: { 
-                                    isPaid: true,
-                                    expiryDate: expiryDate.toISOString()
-                                }
-                            }));
-                        }, 1000);
-                        
-                        this.isProcessing = false;
-                    })
-                    .catch((userUpdateError) => {
-                        console.error('Error updating user document:', userUpdateError);
-                        
-                        // Fallback to localStorage
-                        localStorage.setItem('isPremium', 'true');
-                        localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                        
-                        this.showSuccess();
-                        
-                        window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                            detail: { 
-                                isPaid: true,
-                                expiryDate: expiryDate.toISOString()
-                            }
-                        }));
-                        
-                        this.isProcessing = false;
-                    });
-                })
-                .catch((codeUpdateError) => {
-                    console.error('Error updating code document:', codeUpdateError);
-                    
-                    // Still give access if code was valid
-                    localStorage.setItem('isPremium', 'true');
-                    localStorage.setItem('premiumExpiry', expiryDate.toISOString());
-                    
-                    this.showSuccess();
-                    
-                    window.dispatchEvent(new CustomEvent('paymentStatusChanged', {
-                        detail: { 
-                            isPaid: true,
-                            expiryDate: expiryDate.toISOString()
+                        expiryDate: expiryDate.toISOString()
+                    }
+                }));
+                
+                // Update PaymentAuth if available
+                if (window.PaymentAuth) {
+                    window.PaymentAuth.isPaid = true;
+                    window.PaymentAuth.paymentExpiry = expiryDate.toISOString();
+                    setTimeout(() => {
+                        if (window.PaymentAuth.updateUI) {
+                            window.PaymentAuth.updateUI();
                         }
-                    }));
-                    
-                    this.isProcessing = false;
-                });
-            })
-            .catch((error) => {
-                console.error('Error querying verification codes:', error);
-                this.showError('Error verifying code. Please try again later.');
-                this.isProcessing = false;
-            });
-    } catch (error) {
-        console.error('Error processing redemption code:', error);
-        this.showError('Error processing your request. Please try again later.');
-        this.isProcessing = false;
-    }
+                    }, 500);
+                }
+            } else {
+                // Invalid code
+                this.showRedemptionForm();
+                if (errorElement) {
+                    errorElement.textContent = 'Invalid or expired redemption code';
+                }
+            }
+            
+            this.isProcessing = false;
+        } catch (error) {
+            console.error('Redemption error:', error);
+            this.showError('Error processing redemption code. Please try again later.');
+            this.isProcessing = false;
+        }
+    }, 1500);
 }
     
     // Initiate payment process with prevention of duplicate submissions
-    static async initiatePayment() {
-          // Refresh the currentUser reference
-    auth.currentUser = window.Auth && window.Auth.user ? window.Auth.user : null;
-    
-        // Prevent multiple submissions
-        if (this.isProcessing) {
-            console.log('Payment already in progress, ignoring duplicate request');
-            return;
-        }
-        
-        this.isProcessing = true;
-        console.log('Initiating payment process');
-        
-        // Check if Firebase is required but not available
-        if (!this.firebaseAvailable) {
-            console.log('Firebase not available, redirecting to redemption flow');
-            this.showRedemptionForm();
-            this.isProcessing = false;
-            return;
-        }
-        
-        this.showLoading();
-        
-        try {
-            // Get current user before proceeding
-            const currentUser = auth.currentUser;
-            if (!currentUser) {
-                console.error('User not logged in - cannot proceed with payment');
-                setTimeout(() => {
-                    this.showError('Please login again before making a payment.');
-                    this.isProcessing = false;
-                }, 1000);
-                return;
-            }
-            
-            // Continue with simulated payment process
-            setTimeout(() => {
-                try {
-                    // In a real implementation, call your backend API here
-                    // For now, show an appropriate message
-                    this.showError('Payment system is currently in testing mode. Please use a redemption code instead.');
-                } catch (error) {
-                    console.error('Payment initialization error:', error);
-                    this.showError('Failed to initialize payment. Please try redemption code instead.');
-                } finally {
-                    this.isProcessing = false;
-                }
-            }, 1500);
-        } catch (error) {
-            console.error('Error during payment initiation:', error);
-            this.showError('An unexpected error occurred. Please try again later.');
-            this.isProcessing = false;
-        }
+ static initiatePayment() {
+    // Prevent multiple submissions
+    if (this.isProcessing) {
+        console.log('Payment already in progress, ignoring duplicate request');
+        return;
     }
+    
+    this.isProcessing = true;
+    console.log('Initiating payment process');
+    
+    this.showLoading();
+    
+    // Always show test mode message - this simplifies the code tremendously
+    setTimeout(() => {
+        try {
+            this.showError('Payment system is currently in testing mode. Please use a redemption code instead.');
+        } catch (error) {
+            console.error('Payment initialization error:', error);
+            this.showError('Failed to initialize payment. Please try redemption code instead.');
+        } finally {
+            this.isProcessing = false;
+        }
+    }, 1500);
+}
     
     // Show payment form
     static showPaymentForm() {
