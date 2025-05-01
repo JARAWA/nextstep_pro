@@ -212,7 +212,9 @@ static init() {
     }
     
 static checkFirebaseStatus() {
-    try {
+      // Refresh the currentUser reference
+    auth.currentUser = window.Auth && window.Auth.user ? window.Auth.user : null;
+        try {
         if (window.firebase && window.firebase.firestore) {
             console.log('Firebase detected via window.firebase');
 
@@ -417,6 +419,9 @@ static checkFirebaseStatus() {
     
     // Process redemption code - updated for Firebase v9 with improved error handling
 static async redeemCode() {
+      // Refresh the currentUser reference
+    auth.currentUser = window.Auth && window.Auth.user ? window.Auth.user : null;
+    
     // Prevent multiple submissions
     if (this.isProcessing) {
         console.log('Redemption already in progress, ignoring duplicate request');
@@ -672,6 +677,9 @@ static async redeemCode() {
     
     // Initiate payment process with prevention of duplicate submissions
     static async initiatePayment() {
+          // Refresh the currentUser reference
+    auth.currentUser = window.Auth && window.Auth.user ? window.Auth.user : null;
+    
         // Prevent multiple submissions
         if (this.isProcessing) {
             console.log('Payment already in progress, ignoring duplicate request');
