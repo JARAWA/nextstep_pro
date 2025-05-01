@@ -257,6 +257,26 @@
         }
     });
 </script>
-    
+    // Add at the end of the HTML file temporarily
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        console.log('Checking modal state after load');
+        const paymentModal = document.getElementById('paymentModal');
+        if (paymentModal) {
+            console.log('Payment modal found in DOM');
+            const activeForms = paymentModal.querySelectorAll('.payment-form.active');
+            console.log(`${activeForms.length} active forms found`);
+            
+            // Test direct opening
+            if (window.PaymentModal) {
+                console.log('PaymentModal object found, can invoke:', typeof window.PaymentModal.openModal === 'function');
+            }
+        } else {
+            console.log('Payment modal NOT found in DOM');
+        }
+    }, 2000);
+});
+</script>
 </body>
 </html>
