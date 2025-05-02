@@ -52,41 +52,55 @@ class PaymentModal {
     /**
      * Load the payment modal HTML
      */
-    static loadHTML() {
-        console.log('Loading payment modal HTML');
-        
-        // Check if modal already exists
-        if (document.getElementById('paymentModal')) {
-            console.log('Payment modal already exists');
-            this.init();
-            return;
-        }
-        
-        // Fetch the HTML
-        fetch('components/payment-modal.html')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.text();
-            })
-            .then(html => {
-                // Create temporary container
-                const tempContainer = document.createElement('div');
-                tempContainer.innerHTML = html;
-                
-                // Append to body
-                document.body.appendChild(tempContainer.firstElementChild);
-                
-                console.log('Payment modal HTML loaded successfully');
-                
-                // Initialize the modal
-                setTimeout(() => this.init(), 300);
-            })
-            .catch(error => {
-                console.error('Error loading payment modal HTML:', error);
-            });
+    /**
+ * Load the payment modal HTML
+ */
+static loadHTML() {
+    console.log('Loading payment modal HTML');
+    
+    // First, check if we already have a modal in the DOM
+    const existingModal = document.getElementById('paymentModal');
+    if (existingModal) {
+        console.log('Payment modal already exists, using existing modal');
+        this.modal = existingModal;
+        this.init();
+        return;
     }
+    
+    // Remove any potential duplicate modals with the same classes
+    const potentialDuplicates = document.querySelectorAll('.modal.payment-modal-content');
+    potentialDuplicates.forEach(duplicate => {
+        if (duplicate.id !== 'paymentModal') {
+            console.log('Removing duplicate modal element');
+            duplicate.parentNode.removeChild(duplicate);
+        }
+    });
+    
+    // Fetch the HTML
+    fetch('components/payment-modal.html')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            // Create temporary container
+            const tempContainer = document.createElement('div');
+            tempContainer.innerHTML = html;
+            
+            // Append to body
+            document.body.appendChild(tempContainer.firstElementChild);
+            
+            console.log('Payment modal HTML loaded successfully');
+            
+            // Initialize the modal
+            setTimeout(() => this.init(), 300);
+        })
+        .catch(error => {
+            console.error('Error loading payment modal HTML:', error);
+        });
+}
     
     /**
      * Setup all event listeners
@@ -243,42 +257,42 @@ class PaymentModal {
      * *** FIXED METHOD ***
      */
     static showRedemptionForm() {
-        if (!this.modal) {
-            console.error('Modal not found when showing redemption form');
-            return;
-        }
-        
-        console.log('Showing redemption form');
-        
-        // Hide all forms
-        const forms = this.modal.querySelectorAll('.payment-form');
-        forms.forEach(form => {
-            form.classList.remove('active');
-            console.log(`Removed active class from form: ${form.id}`);
-        });
-        
-        // Show redemption form
-        const redemptionForm = document.getElementById('redemptionForm');
-        if (redemptionForm) {
-            redemptionForm.classList.add('active');
-            console.log('Added active class to redemption form');
-            
-            // Focus on the redemption code input
-            const codeInput = document.getElementById('redemptionCode');
-            if (codeInput) {
-                setTimeout(() => {
-                    try {
-                        codeInput.focus();
-                        console.log('Focused on redemption code input');
-                    } catch(e) {
-                        console.error('Error focusing on redemption code input:', e);
-                    }
-                }, 100);
-            }
-        } else {
-            console.error('Redemption form not found in DOM');
-        }
+    if (!this.modal) {
+        console.error('Modal not found when showing redemption form');
+        return;
     }
+    
+    console.log('Showing redemption form');
+    
+    // Hide all forms WITHIN THIS SPECIFIC MODAL
+    const forms = this.modal.querySelectorAll('.payment-form');
+    forms.forEach(form => {
+        form.classList.remove('active');
+        console.log(`Removed active class from form: ${form.id}`);
+    });
+    
+    // Show redemption form WITHIN THIS SPECIFIC MODAL
+    const redemptionForm = this.modal.querySelector('#redemptionForm');
+    if (redemptionForm) {
+        redemptionForm.classList.add('active');
+        console.log('Added active class to redemption form');
+        
+        // Focus on the redemption code input
+        const codeInput = redemptionForm.querySelector('#redemptionCode');
+        if (codeInput) {
+            setTimeout(() => {
+                try {
+                    codeInput.focus();
+                    console.log('Focused on redemption code input');
+                } catch(e) {
+                    console.error('Error focusing on redemption code input:', e);
+                }
+            }, 100);
+        }
+    } else {
+        console.error('Redemption form not found in modal');
+    }
+}
     
     /**
      * Show loading state
