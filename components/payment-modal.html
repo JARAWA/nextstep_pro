@@ -79,13 +79,7 @@
             <!-- Alternative Option -->
 <div class="redemption-option">
     <p>Have a redemption code? 
-        <a href="#" onclick="
-            event.preventDefault();
-            document.querySelectorAll('.payment-form').forEach(form => form.classList.remove('active'));
-            document.getElementById('redemptionForm').classList.add('active');
-            setTimeout(() => document.getElementById('redemptionCode').focus(), 100);
-            return false;
-        ">Redeem here</a>
+        <a href="#" id="redemption-link">Redeem here</a>
     </p>
 </div>
         
