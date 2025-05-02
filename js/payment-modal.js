@@ -97,21 +97,24 @@ class PaymentModal {
     /**
      * Setup all event listeners
      */
-    static setupEventListeners() {
-        if (!this.modal) return;
-        
-        // Close buttons
-        const closeButtons = this.modal.querySelectorAll('.close');
-        closeButtons.forEach(button => {
-            button.addEventListener('click', () => this.closeModal());
-        });
-        
-        // Close when clicking outside the modal
-        this.modal.addEventListener('click', (e) => {
-            if (e.target === this.modal) {
-                this.closeModal();
-            }
-        });
+static setupEventListeners() {
+    if (!this.modal) {
+        console.error('Modal not found in setupEventListeners');
+        return;
+    }
+    
+    // Close buttons
+    const closeButtons = this.modal.querySelectorAll('.close');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', () => this.closeModal());
+    });
+    
+    // Close when clicking outside the modal
+    this.modal.addEventListener('click', (e) => {
+        if (e.target === this.modal) {
+            this.closeModal();
+        }
+    });
         
         // Plan selection
         const planOptions = this.modal.querySelectorAll('.plan-option');
@@ -141,13 +144,20 @@ class PaymentModal {
         }
         
         // Redemption link
-        const redemptionLink = this.modal.querySelector('.redemption-option a');
-        if (redemptionLink) {
-            redemptionLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.showRedemptionForm();
-            });
-        }
+    const redemptionLink = this.modal.querySelector('.redemption-option a');
+    if (redemptionLink) {
+        // Remove any existing event listeners (in case of multiple initializations)
+        redemptionLink.removeAttribute('onclick');
+        
+        // Add proper event listener
+        redemptionLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Redemption link clicked');
+            this.showRedemptionForm();
+        });
+    } else {
+        console.error('Redemption link not found');
+    }
         
         // Redemption button
         const redemptionButton = this.modal.querySelector('.redemption-btn');
@@ -233,25 +243,29 @@ class PaymentModal {
     /**
      * Show the redemption form
      */
-    static showRedemptionForm() {
-        if (!this.modal) return;
+static showRedemptionForm() {
+    if (!this.modal) return;
+    
+    console.log('Showing redemption form'); // Add logging
+    
+    // Hide all forms
+    const forms = this.modal.querySelectorAll('.payment-form');
+    forms.forEach(form => form.classList.remove('active'));
+    
+    // Show redemption form
+    const redemptionForm = document.getElementById('redemptionForm');
+    if (redemptionForm) {
+        redemptionForm.classList.add('active');
         
-        // Hide all forms
-        const forms = this.modal.querySelectorAll('.payment-form');
-        forms.forEach(form => form.classList.remove('active'));
-        
-        // Show redemption form
-        const redemptionForm = document.getElementById('redemptionForm');
-        if (redemptionForm) {
-            redemptionForm.classList.add('active');
-            
-            // Focus on the redemption code input
-            const codeInput = document.getElementById('redemptionCode');
-            if (codeInput) {
-                setTimeout(() => codeInput.focus(), 100);
-            }
+        // Focus on the redemption code input
+        const codeInput = document.getElementById('redemptionCode');
+        if (codeInput) {
+            setTimeout(() => codeInput.focus(), 100);
         }
+    } else {
+        console.error('Redemption form not found');
     }
+}
     
     /**
      * Show loading state
