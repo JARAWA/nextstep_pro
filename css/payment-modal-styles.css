@@ -434,3 +434,15 @@ a[href^="mailto"] {
 a[href^="mailto"]:hover {
     text-decoration: underline;
 }
+
+.payment-form.active {
+    display: block !important;
+}
+
+#paymentModal .payment-form {
+    display: none;
+}
+
+#paymentModal .payment-form.active {
+    display: block !important;
+}
