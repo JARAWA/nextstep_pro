@@ -77,10 +77,17 @@
             </div>
             
             <!-- Alternative Option -->
-            <div class="redemption-option">
-                <p>Have a redemption code? <a href="#">Redeem here</a></p>
-            </div>
-        </div>
+<div class="redemption-option">
+    <p>Have a redemption code? 
+        <a href="#" onclick="
+            event.preventDefault();
+            document.querySelectorAll('.payment-form').forEach(form => form.classList.remove('active'));
+            document.getElementById('redemptionForm').classList.add('active');
+            setTimeout(() => document.getElementById('redemptionCode').focus(), 100);
+            return false;
+        ">Redeem here</a>
+    </p>
+</div>
         
         <!-- Redemption Form -->
         <div id="redemptionForm" class="payment-form">
